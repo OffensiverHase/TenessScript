@@ -1,0 +1,37 @@
+statement   : NEWLINE* expr (NEWLINE+ expr)* END|EOF
+
+expr        : KEYWORD:VAR IDENTIFIER ASSIGN expr
+            : KEYWORD:FOR IDENTIFIER ASSIGN atom TO atom (STEP atom)? THEN (expr)|statement
+            : KEYWORD:WHILE op-expr THEN
+            : KEYWORD:SUI IDENTIFIER LPAREN (IDENTIFIER (COMMA IDENTIFIER)*)? RPAREN ARROW expr
+            : RETURN op-expr
+            : BREAK
+            : CONTINUE
+            : op-expr
+
+op-expr     : comp-expr ((AND|OR)comp-expr)*
+
+comp-expr   : NOT comp-expr
+            : arith-expr ((EE|LT|GT|LTE|GTE) arith-expr)*
+
+arith-expr  : term ((PLUS|MINUS) term)*
+
+term        : factor (MUL|DIV) factor)*
+
+factor      : (PLUS|MINUS) power
+
+power       : atom (POW factor)*
+
+atom        : LSB (atom(COMMA atom)*)? RSB
+            : INT|FLOAT
+            : LPAREN expr RPAREN
+            : IDENTIFIER
+            : IDENTIFIER (LPAREN (op-expr (COMMA op-expr)*)? RPAREN)?
+            : STRING
+            : RJ_LIST OPERATOR
+            : if-expr
+
+if-expr     : KEYWORD:IF op-expr THEN
+               (expr (ELSE (expr)|(NEWLINE statement)*END)
+              |(NEWLINE statement (ELSE (expr)|(NEWLINE statement)*END)*)
+
