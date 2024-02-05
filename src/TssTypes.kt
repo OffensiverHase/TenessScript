@@ -1,6 +1,6 @@
 import kotlin.math.pow
 
-sealed class RjType {
+sealed class TssType {
     abstract val value: Any?
     abstract override operator fun equals(other: Any?): Boolean
     override fun toString(): String {
@@ -8,23 +8,23 @@ sealed class RjType {
     }
 }
 
-sealed class RjNumber : RjType() {
+sealed class TssNumber : TssType() {
     abstract override val value: Number
-    abstract operator fun plus(other: RjNumber): RjNumber
-    abstract operator fun minus(other: RjNumber): RjNumber
-    abstract operator fun times(other: RjNumber): RjNumber
-    abstract operator fun div(other: RjNumber): RjNumber
-    abstract operator fun unaryMinus(): RjNumber
-    abstract fun pow(other: RjNumber): RjNumber
-    abstract fun and(other: RjNumber): RjNumber
-    abstract fun or(other: RjNumber): RjNumber
-    abstract fun less(other: RjNumber): RjNumber
-    abstract fun greater(other: RjNumber): RjNumber
-    abstract fun lessEquals(other: RjNumber): RjNumber
-    abstract fun greaterEquals(other: RjNumber): RjNumber
+    abstract operator fun plus(other: TssNumber): TssNumber
+    abstract operator fun minus(other: TssNumber): TssNumber
+    abstract operator fun times(other: TssNumber): TssNumber
+    abstract operator fun div(other: TssNumber): TssNumber
+    abstract operator fun unaryMinus(): TssNumber
+    abstract fun pow(other: TssNumber): TssNumber
+    abstract fun and(other: TssNumber): TssNumber
+    abstract fun or(other: TssNumber): TssNumber
+    abstract fun less(other: TssNumber): TssNumber
+    abstract fun greater(other: TssNumber): TssNumber
+    abstract fun lessEquals(other: TssNumber): TssNumber
+    abstract fun greaterEquals(other: TssNumber): TssNumber
 }
 
-object Null : RjType() {
+object Null : TssType() {
     override val value = null
     override fun equals(other: Any?): Boolean {
         return other is Null
@@ -39,70 +39,70 @@ object Null : RjType() {
     }
 }
 
-class RjFloat(override val value: Double) : RjNumber() {
-    override fun plus(other: RjNumber): RjNumber {
+class TssFloat(override val value: Double) : TssNumber() {
+    override fun plus(other: TssNumber): TssNumber {
         val otherVal = other.value.toDouble()
-        return RjFloat(this.value + otherVal)
+        return TssFloat(this.value + otherVal)
     }
 
-    override fun minus(other: RjNumber): RjNumber {
+    override fun minus(other: TssNumber): TssNumber {
         val otherVal = other.value.toDouble()
-        return RjFloat(this.value - otherVal)
+        return TssFloat(this.value - otherVal)
     }
 
-    override fun times(other: RjNumber): RjNumber {
+    override fun times(other: TssNumber): TssNumber {
         val otherVal = other.value.toDouble()
-        return RjFloat(this.value * otherVal)
+        return TssFloat(this.value * otherVal)
     }
 
-    override fun div(other: RjNumber): RjNumber {
+    override fun div(other: TssNumber): TssNumber {
         val otherVal = other.value.toDouble()
         if (otherVal == 0.0)
             fail(RuntimeError("Division by zero!: ${this.value} / $otherVal", Position.unknown), "Running")
-        return RjFloat(this.value / otherVal)
+        return TssFloat(this.value / otherVal)
     }
 
-    override fun unaryMinus(): RjNumber {
-        return RjFloat(-this.value)
+    override fun unaryMinus(): TssNumber {
+        return TssFloat(-this.value)
     }
 
-    override fun pow(other: RjNumber): RjNumber {
+    override fun pow(other: TssNumber): TssNumber {
         val otherVal = other.value.toDouble()
-        return RjFloat(this.value.pow(otherVal))
+        return TssFloat(this.value.pow(otherVal))
     }
 
-    override fun less(other: RjNumber): RjNumber {
+    override fun less(other: TssNumber): TssNumber {
         val otherVal = other.value.toDouble()
-        return RjInt.bool(this.value < otherVal)
+        return TssInt.bool(this.value < otherVal)
     }
 
-    override fun greater(other: RjNumber): RjNumber {
+    override fun greater(other: TssNumber): TssNumber {
         val otherVal = other.value.toDouble()
-        return RjInt.bool(this.value > otherVal)
+        return TssInt.bool(this.value > otherVal)
     }
 
-    override fun lessEquals(other: RjNumber): RjNumber {
+    override fun lessEquals(other: TssNumber): TssNumber {
         val otherVal = other.value.toDouble()
-        return RjInt.bool(this.value <= otherVal)
+        return TssInt.bool(this.value <= otherVal)
     }
 
-    override fun greaterEquals(other: RjNumber): RjNumber {
+    override fun greaterEquals(other: TssNumber): TssNumber {
         val otherVal = other.value.toDouble()
-        return RjInt.bool(this.value >= otherVal)
+        return TssInt.bool(this.value >= otherVal)
     }
 
-    override fun and(other: RjNumber): RjNumber {
+    override fun and(other: TssNumber): TssNumber {
         val otherVal = other.value.toInt()
-        return RjInt(this.value.toInt().and(otherVal))
+        return TssInt(this.value.toInt().and(otherVal))
     }
 
-    override fun or(other: RjNumber): RjNumber {
+    override fun or(other: TssNumber): TssNumber {
         val otherVal = other.value.toInt()
-        return RjInt(this.value.toInt().or(otherVal))
+        return TssInt(this.value.toInt().or(otherVal))
     }
 
     override fun equals(other: Any?): Boolean {
-        if (other !is RjNumber) return false
+        if (other !is TssNumber) return false
         val otherVal = other.value.toDouble()
         return this.value == otherVal
     }
@@ -117,79 +117,79 @@ class RjFloat(override val value: Double) : RjNumber() {
 
 }
 
-class RjInt(override val value: Int) : RjNumber() {
+class TssInt(override val value: Int) : TssNumber() {
     companion object {
-        fun bool(value: Boolean) = RjInt(value.toInt())
-        val True: RjInt
+        fun bool(value: Boolean) = TssInt(value.toInt())
+        val True: TssInt
             get() {
                 return bool(true)
             }
 
-        val False: RjInt
+        val False: TssInt
             get() {
                 return bool(false)
             }
     }
 
-    override fun plus(other: RjNumber): RjNumber {
+    override fun plus(other: TssNumber): TssNumber {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
-            return RjInt(this.value + otherVal)
+            return TssInt(this.value + otherVal)
         } else {
             val otherVal = other.value.toDouble()
-            return RjFloat(this.value.toDouble() + otherVal)
+            return TssFloat(this.value.toDouble() + otherVal)
         }
     }
 
-    override fun minus(other: RjNumber): RjNumber {
+    override fun minus(other: TssNumber): TssNumber {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
-            return RjInt(this.value - otherVal)
+            return TssInt(this.value - otherVal)
         } else {
             val otherVal = other.value.toDouble()
-            return RjFloat(this.value.toDouble() - otherVal)
+            return TssFloat(this.value.toDouble() - otherVal)
         }
     }
 
-    override fun times(other: RjNumber): RjNumber {
+    override fun times(other: TssNumber): TssNumber {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
-            return RjInt(this.value * otherVal)
+            return TssInt(this.value * otherVal)
         } else {
             val otherVal = other.value.toDouble()
-            return RjFloat(this.value.toDouble() * otherVal)
+            return TssFloat(this.value.toDouble() * otherVal)
         }
     }
 
-    override fun div(other: RjNumber): RjNumber {
+    override fun div(other: TssNumber): TssNumber {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
             if (otherVal == 0)
                 fail(RuntimeError("Division by zero!: ${this.value} / $otherVal", Position.unknown), "Running")
-            return RjInt(this.value / otherVal)
+            return TssInt(this.value / otherVal)
         } else {
             val otherVal = other.value.toDouble()
             if (otherVal == 0.0)
                 fail(RuntimeError("Division by zero!: ${this.value} / $otherVal", Position.unknown), "Running")
-            return RjFloat(this.value.toDouble() / otherVal)
+            return TssFloat(this.value.toDouble() / otherVal)
         }
     }
 
-    override fun unaryMinus(): RjNumber {
-        return RjInt(-this.value)
+    override fun unaryMinus(): TssNumber {
+        return TssInt(-this.value)
     }
 
-    override fun pow(other: RjNumber): RjNumber {
+    override fun pow(other: TssNumber): TssNumber {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
-            return RjInt(this.value.toDouble().pow(otherVal.toDouble()).toInt())
+            return TssInt(this.value.toDouble().pow(otherVal.toDouble()).toInt())
         } else {
             val otherVal = other.value.toDouble()
-            return RjFloat(this.value.toDouble() + otherVal)
+            return TssFloat(this.value.toDouble() + otherVal)
         }
     }
 
-    override fun less(other: RjNumber): RjNumber {
+    override fun less(other: TssNumber): TssNumber {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
             return bool(this.value < otherVal)
@@ -199,7 +199,7 @@ class RjInt(override val value: Int) : RjNumber() {
         }
     }
 
-    override fun greater(other: RjNumber): RjNumber {
+    override fun greater(other: TssNumber): TssNumber {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
             return bool(this.value > otherVal)
@@ -209,7 +209,7 @@ class RjInt(override val value: Int) : RjNumber() {
         }
     }
 
-    override fun lessEquals(other: RjNumber): RjNumber {
+    override fun lessEquals(other: TssNumber): TssNumber {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
             return bool(this.value <= otherVal)
@@ -219,7 +219,7 @@ class RjInt(override val value: Int) : RjNumber() {
         }
     }
 
-    override fun greaterEquals(other: RjNumber): RjNumber {
+    override fun greaterEquals(other: TssNumber): TssNumber {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
             return bool(this.value >= otherVal)
@@ -229,18 +229,18 @@ class RjInt(override val value: Int) : RjNumber() {
         }
     }
 
-    override fun and(other: RjNumber): RjNumber {
+    override fun and(other: TssNumber): TssNumber {
         val otherVal = other.value.toInt()
-        return RjInt(this.value.and(otherVal))
+        return TssInt(this.value.and(otherVal))
     }
 
-    override fun or(other: RjNumber): RjNumber {
+    override fun or(other: TssNumber): TssNumber {
         val otherVal = other.value.toInt()
-        return RjInt(this.value.or(otherVal))
+        return TssInt(this.value.or(otherVal))
     }
 
     override fun equals(other: Any?): Boolean {
-        if (other !is RjNumber) return false
+        if (other !is TssNumber) return false
         val otherVal = other.value.toDouble()
         return this.value.toDouble() == otherVal
     }
@@ -254,7 +254,7 @@ class RjInt(override val value: Int) : RjNumber() {
     }
 }
 
-class RjFunction(val identifier: Token, val args: Array<Token.IDENTIFIER>, val bodyNode: Node) : RjType() {
+class TssFunction(val identifier: Token, val args: Array<Token.IDENTIFIER>, val bodyNode: Node) : TssType() {
     override val value = "<${identifier.value}(${args.joinToString { it.value!! }})>"
 
     override fun toString(): String {
@@ -262,7 +262,7 @@ class RjFunction(val identifier: Token, val args: Array<Token.IDENTIFIER>, val b
     }
 
     override fun equals(other: Any?): Boolean {
-        if (other !is RjFunction) return false
+        if (other !is TssFunction) return false
         return this.identifier.value == other.identifier.value
     }
 
@@ -270,7 +270,7 @@ class RjFunction(val identifier: Token, val args: Array<Token.IDENTIFIER>, val b
         return javaClass.hashCode()
     }
 
-    fun execute(args: Array<Node>): RjType {
+    fun execute(args: Array<Node>): TssType {
         val interpreter = Interpreter(Context(context, "fun\t<${identifier.value}>", VarMap(context.varTable), context.fileName))
         if (args.size < this.args.size) fail(
             InvalidSyntaxError(
@@ -292,16 +292,16 @@ class RjFunction(val identifier: Token, val args: Array<Token.IDENTIFIER>, val b
             interpreter.visit(setVarNode)
         }
         val res = interpreter.visit(this.bodyNode)
-        return if (res is RjReturn) res.value ?: Null
+        return if (res is TssReturn) res.value ?: Null
         else res
     }
 }
 
-class RjString(node: Node.StringNode) : RjType() {
+class TssString(node: Node.StringNode) : TssType() {
     override val value: String = node.token.value!!
     private val pos = node.token.pos
     override fun equals(other: Any?): Boolean {
-        if (other !is RjString) return false
+        if (other !is TssString) return false
         return this.value == other.value
     }
 
@@ -309,46 +309,46 @@ class RjString(node: Node.StringNode) : RjType() {
         return value.hashCode()
     }
 
-    operator fun plus(other: RjString): RjString {
+    operator fun plus(other: TssString): TssString {
         val str = this.value + other.value
-        return RjString(Node.StringNode(Token.STRING(str, this.pos)))
+        return TssString(Node.StringNode(Token.STRING(str, this.pos)))
     }
 
-    operator fun plus (other: RjNumber): RjString{
+    operator fun plus (other: TssNumber): TssString{
         val str = this.value + other.value
-        return RjString(Node.StringNode(Token.STRING(str, this.pos)))
+        return TssString(Node.StringNode(Token.STRING(str, this.pos)))
     }
 
-    operator fun times(times: RjNumber): RjString {
+    operator fun times(times: TssNumber): TssString {
         var str = ""
         for (i in 0..times.value.toInt()) str += this.value
-        return RjString(Node.StringNode(Token.STRING(str, this.pos)))
+        return TssString(Node.StringNode(Token.STRING(str, this.pos)))
     }
 
     override fun toString(): String {
         return "'$value'"
     }
 
-    operator fun get(index: RjNumber): RjType {
-        return RjString(Node.StringNode(Token.STRING(this.value[index.value.toInt()].toString(), Position.unknown)))
+    operator fun get(index: TssNumber): TssType {
+        return TssString(Node.StringNode(Token.STRING(this.value[index.value.toInt()].toString(), Position.unknown)))
     }
 
-    fun rem(index: RjNumber): RjString {
+    fun rem(index: TssNumber): TssString {
         val new = this.value.toMutableList()
         new.removeAt(index.value.toInt())
-        return RjString(Node.StringNode(Token.STRING(String(new.toTypedArray().toCharArray()), Position.unknown)))
+        return TssString(Node.StringNode(Token.STRING(String(new.toTypedArray().toCharArray()), Position.unknown)))
     }
 
 }
 
-class RjList(array: Array<RjType>): RjType() {
-    override val value: Array<RjType> = array
+class TssList(array: Array<TssType>): TssType() {
+    override val value: Array<TssType> = array
 
     override fun toString(): String {
         return "[${this.value.joinToString()}]"
     }
     override fun equals(other: Any?): Boolean {
-        if (other !is RjList) return false
+        if (other !is TssList) return false
         return this.value.contentEquals(other.value)
     }
 
@@ -356,41 +356,41 @@ class RjList(array: Array<RjType>): RjType() {
         return value.contentHashCode()
     }
 
-    operator fun plus(other: RjList): RjList {
-        return RjList(this.value + other.value)
+    operator fun plus(other: TssList): TssList {
+        return TssList(this.value + other.value)
     }
-    operator fun plus(other: RjType): RjList {
-        if (other is RjList)
+    operator fun plus(other: TssType): TssList {
+        if (other is TssList)
             return this + other
         val new = this.value.toMutableList()
         new.add(other)
-        return RjList(new.toTypedArray())
+        return TssList(new.toTypedArray())
     }
-    operator fun get(index: RjType): RjType {
-        if (index !is RjNumber) fail(InvalidSyntaxError("Can only index List with a Number, got $index",Position.unknown), "Interpreting")
+    operator fun get(index: TssType): TssType {
+        if (index !is TssNumber) fail(InvalidSyntaxError("Can only index List with a Number, got $index",Position.unknown), "Interpreting")
         var idx = index.value.toInt()
         if (idx < 0) idx += this.value.size
         else if (idx > this.value.size) fail(NoSuchVarError("Index $idx is out of bounds for size ${this.value.size}",Position.unknown),"Interpreting")
         return this.value[idx]
     }
-    operator fun minus(other: RjType): RjList {
+    operator fun minus(other: TssType): TssList {
         val new = this.value.toMutableList()
         new.remove(other)
-        return RjList(new.toTypedArray())
+        return TssList(new.toTypedArray())
     }
 
-    operator fun rem(index: RjType): RjList {
-        if (index !is RjNumber) fail(InvalidSyntaxError("Can only index List with a Number, got $index",Position.unknown), "Interpreting")
+    operator fun rem(index: TssType): TssList {
+        if (index !is TssNumber) fail(InvalidSyntaxError("Can only index List with a Number, got $index",Position.unknown), "Interpreting")
         var idx = index.value.toInt()
         if (idx < 0) idx += this.value.size
         else if (idx > this.value.size) fail(NoSuchVarError("Index $idx is out of bounds for size ${this.value.size}",Position.unknown),"Interpreting")
         val new = this.value.toMutableList()
         new.removeAt(idx)
-        return RjList(new.toTypedArray())
+        return TssList(new.toTypedArray())
     }
 }
 
-class RjReturn(override val value: RjType?) : RjType() {
+class TssReturn(override val value: TssType?) : TssType() {
     override fun equals(other: Any?): Boolean {
         return false
     }
@@ -398,7 +398,7 @@ class RjReturn(override val value: RjType?) : RjType() {
         return value.hashCode()
     }
 }
-class RjBreak : RjType() {
+class TssBreak : TssType() {
     override val value = null
     override fun equals(other: Any?): Boolean {
         return false
@@ -407,7 +407,7 @@ class RjBreak : RjType() {
         return value.hashCode()
     }
 }
-class RjContinue: RjType() {
+class TssContinue: TssType() {
     override val value = null
     override fun equals(other: Any?): Boolean {
         return false

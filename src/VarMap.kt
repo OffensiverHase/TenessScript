@@ -1,7 +1,7 @@
 class VarMap(private val parent: VarMap? = null) {
-    private val vars: MutableMap<String, RjType> = mutableMapOf()
+    private val vars: MutableMap<String, TssType> = mutableMapOf()
 
-    fun get(access: Node.VarAccessNode): RjType {
+    fun get(access: Node.VarAccessNode): TssType {
         val value = vars[(access.name as Token.IDENTIFIER).value]
         return if (value == null && parent != null)
             parent.get(access)
@@ -11,7 +11,7 @@ class VarMap(private val parent: VarMap? = null) {
         )
     }
 
-    fun set(access: Node.VarAssignNode, value: RjType) {
+    fun set(access: Node.VarAssignNode, value: TssType) {
         vars[(access.name as Token.IDENTIFIER).value!!] = value
     }
 

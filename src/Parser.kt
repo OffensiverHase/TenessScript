@@ -1,23 +1,22 @@
-class Parser(private val tokens: Array<Token>) {
-    private var tokenIndex = -1
-    private var currentToken: Token? = null
+import java.util.concurrent.BlockingQueue
+
+class Parser(private val tokenQueue: BlockingQueue<Token>) {
+    private lateinit var currentToken: Token
 
     init {
         advance()
     }
 
     private fun advance() {
-        tokenIndex++
-        this.currentToken = if (this.tokenIndex < this.tokens.size) this.tokens[this.tokenIndex]
-        else null
+        this.currentToken = this.tokenQueue.take()
     }
 
     fun parse(): Node {
-        if (this.tokens[0] is Token.EOF) return Node.BreakNode()
+        if (this.currentToken is Token.EOF) return Node.BreakNode()
         val result = this.statement()
-        if (this.currentToken !is Token.EOF && this.currentToken != null) fail(
+        if (this.currentToken !is Token.EOF) fail(
             InvalidSyntaxError(
-                "Expected expression, got ${this.currentToken}", this.currentToken!!.pos
+                "Expected expression, got ${this.currentToken}", this.currentToken.pos
             ), "Parsing"
         )
         return result
@@ -26,13 +25,13 @@ class Parser(private val tokens: Array<Token>) {
     private fun atom(): Node {
         when (this.currentToken) {
             is Token.INT, is Token.FLOAT -> {
-                val token = this.currentToken!!
+                val token = this.currentToken
                 this.advance()
                 return Node.NumberNode(token)
             }
 
             is Token.IDENTIFIER -> {
-                val token = this.currentToken!!
+                val token = this.currentToken
                 this.advance()
                 if (this.currentToken is Token.LPAREN) {
                     this.advance()
@@ -41,14 +40,14 @@ class Parser(private val tokens: Array<Token>) {
                         this.advance()
                         return Node.FunCallNode(token, argNodeList.toTypedArray())
                     } else argNodeList.add(this.opExpr())
-                    while (this.currentToken!! is Token.COMMA) {
+                    while (this.currentToken is Token.COMMA) {
                         this.advance()
                         val param = this.opExpr()
                         argNodeList.add(param)
                     }
-                    if (this.currentToken!! !is Token.RPAREN) fail(
+                    if (this.currentToken !is Token.RPAREN) fail(
                         InvalidSyntaxError(
-                            "Expected ')', got ${this.currentToken}", this.currentToken?.pos!!
+                            "Expected ')', got ${this.currentToken}", this.currentToken.pos
                         ), "Parsing"
                     )
                     this.advance()
@@ -64,13 +63,13 @@ class Parser(private val tokens: Array<Token>) {
                     this.advance()
                     return expression
                 } else fail(
-                    InvalidSyntaxError("Expected ')', got ${this.currentToken}", this.currentToken!!.pos), "Parsing"
+                    InvalidSyntaxError("Expected ')', got ${this.currentToken}", this.currentToken.pos), "Parsing"
                 )
 
             }
 
             is Token.STRING -> {
-                val token = this.currentToken!!
+                val token = this.currentToken
                 this.advance()
                 return Node.StringNode(token)
             }
@@ -87,7 +86,7 @@ class Parser(private val tokens: Array<Token>) {
                     }
                     if (this.currentToken !is Token.RSB) fail(
                         InvalidSyntaxError(
-                            "Expected ']' or ',', got ${this.currentToken}", this.currentToken!!.pos
+                            "Expected ']' or ',', got ${this.currentToken}", this.currentToken.pos
                         ), "Parsing"
                     )
                     this.advance()
@@ -96,7 +95,7 @@ class Parser(private val tokens: Array<Token>) {
             }
 
             is Token.KEYWORD -> {
-                when (this.currentToken?.value) {
+                when (this.currentToken.value) {
                     "IF" -> {
                         this.advance()
                         val bool = this.opExpr()
@@ -115,14 +114,14 @@ class Parser(private val tokens: Array<Token>) {
                             else -> {
                                 fail(
                                     InvalidSyntaxError(
-                                        "Expected '{' or ':', got ${this.currentToken}", this.currentToken!!.pos
+                                        "Expected '{' or ':', got ${this.currentToken}", this.currentToken.pos
                                     ), "Parsing"
                                 )
                             }
                         }
 
                         var elseExpr: Node? = null
-                        if (this.currentToken is Token.KEYWORD && this.currentToken?.value == "ELSE") {
+                        if (this.currentToken is Token.KEYWORD && this.currentToken.value == "ELSE") {
                             this.advance()
                             elseExpr = when (this.currentToken) {
                                 is Token.CURLYLEFT -> {
@@ -138,7 +137,7 @@ class Parser(private val tokens: Array<Token>) {
                                 else -> {
                                     fail(
                                         InvalidSyntaxError(
-                                            "Expected '{' or ':', got ${this.currentToken}", this.currentToken!!.pos
+                                            "Expected '{' or ':', got ${this.currentToken}", this.currentToken.pos
                                         ), "Parsing"
                                     )
                                 }
@@ -149,14 +148,14 @@ class Parser(private val tokens: Array<Token>) {
 
                     else -> fail(
                         InvalidSyntaxError(
-                            "Expected Value or if, got ${this.currentToken}", this.currentToken!!.pos
+                            "Expected Value or if, got ${this.currentToken}", this.currentToken.pos
                         ), "Parsing"
                     )
                 }
             }
 
             else -> {
-                val token = this.currentToken!!
+                val token = this.currentToken
                 fail(
                     InvalidSyntaxError(
                         "Expected Value, got $token", token.pos.copy()
@@ -170,13 +169,13 @@ class Parser(private val tokens: Array<Token>) {
     private fun power(): Node {
         var left = this.atom()
         if (this.currentToken is Token.GET) {
-            val operatorToken = this.currentToken!!
+            val operatorToken = this.currentToken
             this.advance()
             val right = this.expression()
             left = Node.BinOpNode(left, operatorToken, right)
         }
         while (this.currentToken is Token.POW) {
-            val operatorToken = this.currentToken!!
+            val operatorToken = this.currentToken
             this.advance()
             val right = this.factor()
             left = Node.BinOpNode(left, operatorToken, right)
@@ -187,7 +186,7 @@ class Parser(private val tokens: Array<Token>) {
     private fun factor(): Node {
         val token = this.currentToken
         while (token is Token.PLUS || token is Token.MINUS) {
-            val unary = this.currentToken!!
+            val unary = this.currentToken
             this.advance()
             val right = this.power()
             return Node.UnaryOpNode(unary, right)
@@ -198,7 +197,7 @@ class Parser(private val tokens: Array<Token>) {
     private fun term(): Node {
         var left: Node = this.factor()
         while (this.currentToken is Token.MUL || this.currentToken is Token.DIV) {
-            val operatorToken = this.currentToken!!
+            val operatorToken = this.currentToken
             this.advance()
             val right = this.factor()
             left = Node.BinOpNode(left, operatorToken, right)
@@ -209,7 +208,7 @@ class Parser(private val tokens: Array<Token>) {
     private fun arithmExpr(): Node {
         var left: Node = this.term()
         while (this.currentToken is Token.PLUS || this.currentToken is Token.MINUS) {
-            val operator = this.currentToken!!
+            val operator = this.currentToken
             this.advance()
             val right = this.term()
             left = Node.BinOpNode(left, operator, right)
@@ -219,14 +218,14 @@ class Parser(private val tokens: Array<Token>) {
 
     private fun compExpr(): Node {
         if (this.currentToken is Token.NOT) {
-            val operator = this.currentToken!!
+            val operator = this.currentToken
             this.advance()
             return Node.UnaryOpNode(operator, this.compExpr())
         }
 
         var left: Node = this.arithmExpr()
         while (this.currentToken is Token.EE || this.currentToken is Token.NE || this.currentToken is Token.LESS || this.currentToken is Token.GREATER || this.currentToken is Token.LESSEQUAL || this.currentToken is Token.GREATEREQUAL) {
-            val operator = this.currentToken!!
+            val operator = this.currentToken
             this.advance()
             val right = this.arithmExpr()
             left = Node.BinOpNode(left, operator, right)
@@ -237,7 +236,7 @@ class Parser(private val tokens: Array<Token>) {
     private fun opExpr(): Node {
         var left: Node = this.compExpr()
         while (this.currentToken is Token.AND || this.currentToken is Token.OR) {
-            val operator = this.currentToken!!
+            val operator = this.currentToken
             this.advance()
             val right = this.compExpr()
             left = Node.BinOpNode(left, operator, right)
@@ -253,17 +252,17 @@ class Parser(private val tokens: Array<Token>) {
                 this.advance()
                 if (this.currentToken !is Token.IDENTIFIER) fail(
                     InvalidSyntaxError(
-                        "Expected identifier, got ${this.currentToken}", this.currentToken!!.pos
+                        "Expected identifier, got ${this.currentToken}", this.currentToken.pos
                     ), "Parsing"
                 )
                 val varName = this.currentToken
                 this.advance()
                 if (this.currentToken !is Token.ASSIGN) fail(
-                    InvalidSyntaxError("Expected <, got ${this.currentToken}", this.currentToken!!.pos), "Parsing"
+                    InvalidSyntaxError("Expected <, got ${this.currentToken}", this.currentToken.pos), "Parsing"
                 )
                 this.advance()
                 val expr = this.expression()
-                return Node.VarAssignNode(varName!!, expr)
+                return Node.VarAssignNode(varName, expr)
             }
 
             "WHILE" -> {
@@ -284,7 +283,7 @@ class Parser(private val tokens: Array<Token>) {
                     else -> {
                         fail(
                             InvalidSyntaxError(
-                                "Expected '{' or ':', got ${this.currentToken}", this.currentToken!!.pos
+                                "Expected '{' or ':', got ${this.currentToken}", this.currentToken.pos
                             ), "Parsing"
                         )
                     }
@@ -296,27 +295,27 @@ class Parser(private val tokens: Array<Token>) {
                 this.advance()
                 if (this.currentToken !is Token.IDENTIFIER) fail(
                     InvalidSyntaxError(
-                        "Expected identifier, for ${this.currentToken}", this.currentToken!!.pos
+                        "Expected identifier, for ${this.currentToken}", this.currentToken.pos
                     ), "Parsing"
                 )
-                val identifier = this.currentToken!!
+                val identifier = this.currentToken
                 this.advance()
                 if (this.currentToken !is Token.ASSIGN) fail(
                     InvalidSyntaxError(
-                        "Expected <, got ${this.currentToken}", this.currentToken!!.pos
+                        "Expected <, got ${this.currentToken}", this.currentToken.pos
                     ), "Parsing"
                 )
                 this.advance()
                 val from = this.factor()
-                if (this.currentToken !is Token.KEYWORD || this.currentToken?.value != "TO") fail(
+                if (this.currentToken !is Token.KEYWORD || this.currentToken.value != "TO") fail(
                     InvalidSyntaxError(
-                        "Expected TO, for ${this.currentToken}", this.currentToken!!.pos
+                        "Expected TO, for ${this.currentToken}", this.currentToken.pos
                     ), "Parsing"
                 )
                 this.advance()
                 val to = this.arithmExpr()
                 var step: Node? = null
-                if (this.currentToken is Token.KEYWORD && this.currentToken?.value == "STEP") {
+                if (this.currentToken is Token.KEYWORD && this.currentToken.value == "STEP") {
                     this.advance()
                     step = this.factor()
                 }
@@ -333,7 +332,7 @@ class Parser(private val tokens: Array<Token>) {
 
                     else -> fail(
                         InvalidSyntaxError(
-                            "Expected THEN, for ${this.currentToken}", this.currentToken!!.pos
+                            "Expected THEN, for ${this.currentToken}", this.currentToken.pos
                         ), "Parsing"
                     )
                 }
@@ -342,38 +341,38 @@ class Parser(private val tokens: Array<Token>) {
 
             "FUN" -> {
                 this.advance()
-                if (this.currentToken!! !is Token.IDENTIFIER) fail(
+                if (this.currentToken !is Token.IDENTIFIER) fail(
                     InvalidSyntaxError(
-                        "Expected Identifier, got ${this.currentToken}", this.currentToken!!.pos
+                        "Expected Identifier, got ${this.currentToken}", this.currentToken.pos
                     ), "Parsing"
                 )
-                val identifier = this.currentToken!!
+                val identifier = this.currentToken
                 this.advance()
-                if (this.currentToken!! !is Token.LPAREN) fail(
+                if (this.currentToken !is Token.LPAREN) fail(
                     InvalidSyntaxError(
-                        "Expected '(', got ${this.currentToken}", this.currentToken!!.pos
+                        "Expected '(', got ${this.currentToken}", this.currentToken.pos
                     ), "Parsing"
                 )
                 this.advance()
                 val argList = arrayListOf<Token.IDENTIFIER>()
-                if (this.currentToken!! is Token.IDENTIFIER) {
-                    argList.add(this.currentToken!! as Token.IDENTIFIER)
+                if (this.currentToken is Token.IDENTIFIER) {
+                    argList.add(this.currentToken as Token.IDENTIFIER)
                     this.advance()
                 }
-                while (this.currentToken!! is Token.COMMA) {
+                while (this.currentToken is Token.COMMA) {
                     this.advance()
-                    if (this.currentToken!! !is Token.IDENTIFIER) fail(
+                    if (this.currentToken !is Token.IDENTIFIER) fail(
                         InvalidSyntaxError(
-                            "Expected Identifier, got ${this.currentToken}", this.currentToken!!.pos
+                            "Expected Identifier, got ${this.currentToken}", this.currentToken.pos
                         ), "Parsing"
                     )
-                    argList.add(this.currentToken!! as Token.IDENTIFIER)
+                    argList.add(this.currentToken as Token.IDENTIFIER)
                     this.advance()
                 }
                 val argNames = argList.toTypedArray()
-                if (this.currentToken!! !is Token.RPAREN) fail(
+                if (this.currentToken !is Token.RPAREN) fail(
                     InvalidSyntaxError(
-                        "Expected ')', got ${this.currentToken}", this.currentToken!!.pos
+                        "Expected ')', got ${this.currentToken}", this.currentToken.pos
                     ), "Parsing"
                 )
                 this.advance()
@@ -390,7 +389,7 @@ class Parser(private val tokens: Array<Token>) {
 
                     else -> fail(
                         InvalidSyntaxError(
-                            "Expected '{', or ':', got ${this.currentToken}", this.currentToken!!.pos
+                            "Expected '{', or ':', got ${this.currentToken}", this.currentToken.pos
                         ), "Parsing"
                     )
                 }
@@ -422,7 +421,7 @@ class Parser(private val tokens: Array<Token>) {
         statements.add(this.expression())
         while (this.currentToken is Token.NEWLINE) {
             while (this.currentToken is Token.NEWLINE) this.advance()
-            if (this.currentToken is Token.CURLYRIGHT || this.currentToken!! is Token.EOF) {
+            if (this.currentToken is Token.CURLYRIGHT || this.currentToken is Token.EOF) {
                 this.advance()
                 break
             }

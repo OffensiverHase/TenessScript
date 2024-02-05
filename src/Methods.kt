@@ -3,7 +3,7 @@ import kotlin.system.exitProcess
 
 fun fail(error: Error, stage: String): Nothing {
     System.err.print("""
-Encountered error in stage $stage:
+Encountered error in stage ${Thread.currentThread().name}:
     $error
     Context: ${if (::context.isInitialized) context.toString() else "<main>"}
 """)

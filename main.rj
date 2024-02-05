@@ -1,5 +1,0 @@
-if true:
-    println('hi')
-println('hello')
-
-println('hi')

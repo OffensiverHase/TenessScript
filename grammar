@@ -1,4 +1,4 @@
-statement   : NEWLINE* expr (NEWLINE+ expr)* END|EOF
+statement   : NEWLINE* expr (NEWLINE+ expr)* CURLYRIGHT|EOF
 
 expr        : KEYWORD:VAR IDENTIFIER ASSIGN expr
             : KEYWORD:FOR IDENTIFIER ASSIGN atom TO atom (STEP atom)? THEN (expr)|statement

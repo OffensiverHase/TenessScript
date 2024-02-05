@@ -2,6 +2,7 @@ import java.io.File
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.util.*
+import java.util.concurrent.LinkedBlockingQueue
 
 fun compile(fileName: String) {
     val text = try {
@@ -10,16 +11,22 @@ fun compile(fileName: String) {
         fail(IOError("Could not read file $fileName", Position.unknown), "Starting")
     }
 
-    val lexer = Lexer(text, fileName)
-    val tokens = lexer.makeTokens()
+    val tokenStream = LinkedBlockingQueue<Token>()
+    val lexerThread = Thread(Lexer(text, fileName, tokenStream), "Lexer")
+    lexerThread.start()
 
-    val parser = Parser(tokens)
-    val ast = parser.parse()
+    lateinit var ast: Node
+    val parserThread = Thread({
+        ast = Parser(tokenStream).parse()
+    }, "Parser")
+    parserThread.start()
 
-    val rahanjiFile = File(fileName.removeSuffix(".rj") + ".rahanji")
+    val tscFile = File(fileName.removeSuffix(".tss") + ".tsc")
+
+    parserThread.join()
 
     try {
-        val stream = ObjectOutputStream(rahanjiFile.outputStream())
+        val stream = ObjectOutputStream(tscFile.outputStream())
         stream.writeObject(ast)
         stream.close()
     } catch (e: Exception) {
@@ -41,10 +48,12 @@ fun run(fileName: String) {
     addDefaults(varMap)
 
     val interpreter = Interpreter(Context(null, "\n\t\t<main>", varMap, fileName))
+    Thread.currentThread().name = "Interpreter"
+
     interpreter.visit(node)
 }
 
-fun noCompile(fileName: String): RjType {
+fun noCompile(fileName: String): TssType {
     val startContext = Context(null, "\n\t\t<main>", VarMap(), fileName)
 
     val text = try {
@@ -56,13 +65,23 @@ fun noCompile(fileName: String): RjType {
     val varMap = startContext.varTable
     addDefaults(varMap)
 
-    val lexer = Lexer(text, fileName)
-    val tokens = lexer.makeTokens()
+    val tokenStream = LinkedBlockingQueue<Token>()
+    val lexerThread = Thread(Lexer(text, fileName, tokenStream), "Lexer")
+    lexerThread.start()
 
-    val parser = Parser(tokens)
-    val ast = parser.parse()
+    lateinit var ast: Node
+    val parserThread = Thread({
+        ast = Parser(tokenStream).parse()
+    }, "Parser")
+    parserThread.start()
 
     val interpreter = Interpreter(startContext)
+    Thread.currentThread().name = "Interpreter"
+
+
+    parserThread.join()
+
+    println()
     val result = interpreter.visit(ast)
 
     return (result)
@@ -73,28 +92,33 @@ fun shell() {
     val startContext = Context(null, "<main>", VarMap(null), "<stdin>")
     addDefaults(startContext.varTable)
     while (true) {
-        print("rahanji > ")
+        print("Teness > ")
         val text = scanner.nextLine()
         if (text.isBlank()) continue
         if (text == "/stop") break
-        val res: RjType = shellStart(text, startContext)
-        if (!(res is Null || res is RjBreak || res is RjReturn || res is RjContinue)) {
+        val res: TssType = shellStart(text, startContext)
+        if (!(res is Null || res is TssBreak || res is TssReturn || res is TssContinue)) {
             println(res)
         }
     }
 }
 
-fun shellStart(text: String, startContext: Context): RjType {
-    val varMap = startContext.varTable
-    addDefaults(varMap)
+fun shellStart(text: String, startContext: Context): TssType {
+    val tokenStream = LinkedBlockingQueue<Token>()
+    val lexerThread = Thread(Lexer(text, "<stdin>", tokenStream), "Lexer")
+    lexerThread.start()
 
-    val lexer = Lexer(text, "<stdin>")
-    val tokens = lexer.makeTokens()
-
-    val parser = Parser(tokens)
-    val ast = parser.parse()
+    lateinit var ast: Node
+    val parserThread = Thread({
+        ast = Parser(tokenStream).parse()
+    }, "Parser")
+    parserThread.start()
 
     val interpreter = Interpreter(startContext)
+    Thread.currentThread().name = "Interpreter"
+
+    parserThread.join()
+
     val result = interpreter.visit(ast)
 
     return (result)
@@ -110,12 +134,12 @@ fun addDefaults(varMap: VarMap) {
     varMap.set(
         Node.VarAssignNode(
             Token.IDENTIFIER("true", Position.unknown), Node.NumberNode(Token.INT(1, Position.unknown))
-        ), RjInt.True
+        ), TssInt.True
     )
     varMap.set(
         Node.VarAssignNode(
             Token.IDENTIFIER("false", Position.unknown), Node.NumberNode(Token.INT(0, Position.unknown))
-        ), RjInt.False
+        ), TssInt.False
     )
 
     Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
