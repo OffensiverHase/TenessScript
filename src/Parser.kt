@@ -248,23 +248,6 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
         ignoreNewLines()
         val token = this.currentToken
         if (token is Token.KEYWORD) when (token.value) {
-            "VAR" -> {
-                this.advance()
-                if (this.currentToken !is Token.IDENTIFIER) fail(
-                    InvalidSyntaxError(
-                        "Expected identifier, got ${this.currentToken}", this.currentToken.pos
-                    ), "Parsing"
-                )
-                val varName = this.currentToken
-                this.advance()
-                if (this.currentToken !is Token.ASSIGN) fail(
-                    InvalidSyntaxError("Expected <, got ${this.currentToken}", this.currentToken.pos), "Parsing"
-                )
-                this.advance()
-                val expr = this.expression()
-                return Node.VarAssignNode(varName, expr)
-            }
-
             "WHILE" -> {
                 this.advance()
                 val bool = this.opExpr()
@@ -410,6 +393,14 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
             "CONTINUE" -> {
                 this.advance()
                 return Node.ContinueNode()
+            }
+        } else if (this.currentToken is Token.IDENTIFIER) {
+            val varName = this.currentToken
+            if (this.tokenQueue.element() is Token.ASSIGN) {
+                this.advance() // Advance to the <-
+                this.advance() // Advance past the <-
+                val expr = this.expression()
+                return Node.VarAssignNode(varName, expr)
             }
         }
         return opExpr()
