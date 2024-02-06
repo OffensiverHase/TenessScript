@@ -1,7 +1,7 @@
 import java.util.*
 import java.util.concurrent.BlockingQueue
 
-class Lexer(private val text: String, fileName: String, val tokenQueue: BlockingQueue<Token>): Runnable {
+class Lexer(private val text: String, fileName: String, private val tokenQueue: BlockingQueue<Token>): Runnable {
     private var pos = Position(-1, 0, -1, fileName, text)
     private var currentChar: Char? = null
     private val digits = "1234567890"
