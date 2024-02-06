@@ -1,5 +1,3 @@
-import kotlin.system.exitProcess
-
 class VarMap(private val parent: VarMap? = null) {
     private val vars: MutableMap<String, TssType> = mutableMapOf()
 

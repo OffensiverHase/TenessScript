@@ -154,7 +154,7 @@ class Lexer(private val text: String, fileName: String, val tokenQueue: Blocking
                 else -> {
                     fail(IllegalCharError("Unknown char ${this.currentChar}", this.pos))
                     tokenQueue.put(Token.EOF(this.pos))
-                    break;
+                    break
                 }
             }
         }
