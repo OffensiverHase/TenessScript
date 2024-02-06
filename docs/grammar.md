@@ -8,7 +8,7 @@ $$
   \end{cases}\\
   [\text{expr}] &\to
   \begin{cases}
-    \text{var \textit{identifier} <- \textbf{expr} }\\
+    \text{\textit{identifier} <- \textbf{expr} }\\
     \text{loops}\\
     \text{fun-def}\\
     \text{return \textbf{op-expr}, break, continue}\\

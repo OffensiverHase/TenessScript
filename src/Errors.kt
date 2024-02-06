@@ -2,7 +2,7 @@ open class Error(
     private val name: String,
     internal val details: String,
     internal val posStart: Position,
-) {
+): Throwable() {
     override fun toString(): String {
         return "$name: $details, File ${posStart.fileName}, line ${posStart.line + 1}, pos ${posStart.column}"
     }

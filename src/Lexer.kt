@@ -27,7 +27,7 @@ class Lexer(private val text: String, fileName: String, val tokenQueue: Blocking
         this.currentChar = if (this.pos.index < this.text.length) this.text[pos.index] else null
     }
 
-    fun makeTokens() {
+    private fun makeTokens() {
         while (this.currentChar != null) {
             when (this.currentChar!!) {
                 in " \t\r" -> this.advance()
@@ -152,7 +152,9 @@ class Lexer(private val text: String, fileName: String, val tokenQueue: Blocking
                 }
 
                 else -> {
-                    fail(IllegalCharError("Unknown char ${this.currentChar}", this.pos), "Lexing")
+                    fail(IllegalCharError("Unknown char ${this.currentChar}", this.pos))
+                    tokenQueue.put(Token.EOF(this.pos))
+                    break;
                 }
             }
         }
@@ -202,7 +204,7 @@ class Lexer(private val text: String, fileName: String, val tokenQueue: Blocking
             else string += this.currentChar!!
             this.advance()
         }
-        if (this.currentChar == null) fail(InvalidSyntaxError("Unclosed String Literal", pos), "Lexing")
+        if (this.currentChar == null) fail(InvalidSyntaxError("Unclosed String Literal", pos))
         this.advance()
         return Token.STRING(string, pos)
     }

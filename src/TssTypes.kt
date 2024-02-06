@@ -1,4 +1,5 @@
 import kotlin.math.pow
+import kotlin.system.exitProcess
 
 sealed class TssType {
     abstract val value: Any?
@@ -57,8 +58,10 @@ class TssFloat(override val value: Double) : TssNumber() {
 
     override fun div(other: TssNumber): TssNumber {
         val otherVal = other.value.toDouble()
-        if (otherVal == 0.0)
-            fail(RuntimeError("Division by zero!: ${this.value} / $otherVal", Position.unknown), "Running")
+        if (otherVal == 0.0) {
+            fail(RuntimeError("Division by zero!: ${this.value} / $otherVal", Position.unknown))
+            return TssFloat(Double.NaN)
+        }
         return TssFloat(this.value / otherVal)
     }
 
@@ -164,13 +167,17 @@ class TssInt(override val value: Int) : TssNumber() {
     override fun div(other: TssNumber): TssNumber {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
-            if (otherVal == 0)
-                fail(RuntimeError("Division by zero!: ${this.value} / $otherVal", Position.unknown), "Running")
+            if (otherVal == 0) {
+                fail(RuntimeError("Division by zero!: ${this.value} / $otherVal", Position.unknown))
+                return TssFloat(Double.NaN)
+            }
             return TssInt(this.value / otherVal)
         } else {
             val otherVal = other.value.toDouble()
-            if (otherVal == 0.0)
-                fail(RuntimeError("Division by zero!: ${this.value} / $otherVal", Position.unknown), "Running")
+            if (otherVal == 0.0) {
+                fail(RuntimeError("Division by zero!: ${this.value} / $otherVal", Position.unknown))
+                return TssFloat(Double.NaN)
+            }
             return TssFloat(this.value.toDouble() / otherVal)
         }
     }
@@ -270,19 +277,18 @@ class TssFunction(val identifier: Token, val args: Array<Token.IDENTIFIER>, val 
         return javaClass.hashCode()
     }
 
-    fun execute(args: Array<Node>): TssType {
-        val interpreter = Interpreter(Context(context, "fun\t<${identifier.value}>", VarMap(context.varTable), context.fileName))
-        if (args.size < this.args.size) fail(
+    fun execute(args: Array<Node>): Result<TssType> {
+        val interpreter =
+            Interpreter(Context(context, "fun\t<${identifier.value}>", VarMap(context.varTable), context.fileName))
+        if (args.size < this.args.size) return Result.failure(
             InvalidSyntaxError(
-                "Passed to few args into <$identifier()>. Expected ${this.args.size}, got ${args.size}",
-                identifier.pos
-            ), "Interpreting"
+                "Passed to few args into <$identifier()>. Expected ${this.args.size}, got ${args.size}", identifier.pos
+            )
         )
-        else if (args.size > this.args.size) fail(
+        else if (args.size > this.args.size) return Result.failure(
             InvalidSyntaxError(
-                "Passed to many args into <$identifier()>. Expected ${this.args.size}, got ${args.size}",
-                identifier.pos
-            ), "Interpreting"
+                "Passed to many args into <$identifier()>. Expected ${this.args.size}, got ${args.size}", identifier.pos
+            )
         )
 
         for (i in args.indices) {
@@ -291,9 +297,9 @@ class TssFunction(val identifier: Token, val args: Array<Token.IDENTIFIER>, val 
             val setVarNode = Node.VarAssignNode(argName, argValue)
             interpreter.visit(setVarNode)
         }
-        val res = interpreter.visit(this.bodyNode)
-        return if (res is TssReturn) res.value ?: Null
-        else res
+        val res = interpreter.visit(this.bodyNode).getOrElse { return Result.failure(it) }
+        return if (res is TssReturn) Result.success(res.value ?: Null)
+        else Result.success(res)
     }
 }
 
@@ -314,7 +320,7 @@ class TssString(node: Node.StringNode) : TssType() {
         return TssString(Node.StringNode(Token.STRING(str, this.pos)))
     }
 
-    operator fun plus (other: TssNumber): TssString{
+    operator fun plus(other: TssNumber): TssString {
         val str = this.value + other.value
         return TssString(Node.StringNode(Token.STRING(str, this.pos)))
     }
@@ -341,12 +347,13 @@ class TssString(node: Node.StringNode) : TssType() {
 
 }
 
-class TssList(array: Array<TssType>): TssType() {
+class TssList(array: Array<TssType>) : TssType() {
     override val value: Array<TssType> = array
 
     override fun toString(): String {
         return "[${this.value.joinToString()}]"
     }
+
     override fun equals(other: Any?): Boolean {
         if (other !is TssList) return false
         return this.value.contentEquals(other.value)
@@ -359,20 +366,32 @@ class TssList(array: Array<TssType>): TssType() {
     operator fun plus(other: TssList): TssList {
         return TssList(this.value + other.value)
     }
+
     operator fun plus(other: TssType): TssList {
-        if (other is TssList)
-            return this + other
+        if (other is TssList) return this + other
         val new = this.value.toMutableList()
         new.add(other)
         return TssList(new.toTypedArray())
     }
+
     operator fun get(index: TssType): TssType {
-        if (index !is TssNumber) fail(InvalidSyntaxError("Can only index List with a Number, got $index",Position.unknown), "Interpreting")
+        if (index !is TssNumber) {
+            fail(InvalidSyntaxError("Can only index List with a Number, got $index", Position.unknown))
+            exitProcess(1)
+        }
         var idx = index.value.toInt()
         if (idx < 0) idx += this.value.size
-        else if (idx > this.value.size) fail(NoSuchVarError("Index $idx is out of bounds for size ${this.value.size}",Position.unknown),"Interpreting")
+        else if (idx > this.value.size) {
+            fail(
+                NoSuchVarError(
+                    "Index $idx is out of bounds for size ${this.value.size}", Position.unknown
+                )
+            )
+            exitProcess(1)
+        }
         return this.value[idx]
     }
+
     operator fun minus(other: TssType): TssList {
         val new = this.value.toMutableList()
         new.remove(other)
@@ -380,10 +399,24 @@ class TssList(array: Array<TssType>): TssType() {
     }
 
     operator fun rem(index: TssType): TssList {
-        if (index !is TssNumber) fail(InvalidSyntaxError("Can only index List with a Number, got $index",Position.unknown), "Interpreting")
+        if (index !is TssNumber) {
+            fail(
+                InvalidSyntaxError(
+                    "Can only index List with a Number, got $index", Position.unknown
+                )
+            )
+            exitProcess(1)
+        }
         var idx = index.value.toInt()
         if (idx < 0) idx += this.value.size
-        else if (idx > this.value.size) fail(NoSuchVarError("Index $idx is out of bounds for size ${this.value.size}",Position.unknown),"Interpreting")
+        else if (idx > this.value.size) {
+            fail(
+                NoSuchVarError(
+                    "Index $idx is out of bounds for size ${this.value.size}", Position.unknown
+                )
+            )
+            exitProcess(1)
+        }
         val new = this.value.toMutableList()
         new.removeAt(idx)
         return TssList(new.toTypedArray())
@@ -394,24 +427,29 @@ class TssReturn(override val value: TssType?) : TssType() {
     override fun equals(other: Any?): Boolean {
         return false
     }
+
     override fun hashCode(): Int {
         return value.hashCode()
     }
 }
+
 class TssBreak : TssType() {
     override val value = null
     override fun equals(other: Any?): Boolean {
         return false
     }
+
     override fun hashCode(): Int {
         return value.hashCode()
     }
 }
-class TssContinue: TssType() {
+
+class TssContinue : TssType() {
     override val value = null
     override fun equals(other: Any?): Boolean {
         return false
     }
+
     override fun hashCode(): Int {
         return value.hashCode()
     }

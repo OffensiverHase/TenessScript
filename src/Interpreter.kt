@@ -7,10 +7,22 @@ import context as methodContext
 
 class Interpreter(private var context: Context) {
     private val builtinFunctions = arrayOf(
-        "PRINT", "PRINTLN", "READ", "READLINE", "ERROR", "TYPE", "STRING", "NUMBER", "LEN", "CLEAR", "CMD", "RUN", "RANDOM"
+        "PRINT",
+        "PRINTLN",
+        "READ",
+        "READLINE",
+        "ERROR",
+        "TYPE",
+        "STRING",
+        "NUMBER",
+        "LEN",
+        "CLEAR",
+        "CMD",
+        "RUN",
+        "RANDOM"
     )
 
-    fun visit(node: Node): TssType {
+    fun visit(node: Node): Result<TssType> {
         methodContext = this.context
         return when (node) {
             is Node.StatementNode -> visitStatementNode(node)
@@ -47,24 +59,24 @@ class Interpreter(private var context: Context) {
         }
     }
 
-    private fun visitNumberNode(node: Node.NumberNode): TssType {
-        return if (node.token is Token.INT) TssInt(node.token.value?.toInt()!!)
-        else TssFloat(node.token.value?.toDouble()!!)
+    private fun visitNumberNode(node: Node.NumberNode): Result<TssType> {
+        return if (node.token is Token.INT) Result.success(TssInt(node.token.value?.toInt()!!))
+        else Result.success(TssFloat(node.token.value?.toDouble()!!))
     }
 
-    private fun visitBinOpNode(node: Node.BinOpNode): TssType {
-        val left = this.visit(node.leftNode)
-        val right = this.visit(node.rightNode)
+    private fun visitBinOpNode(node: Node.BinOpNode): Result<TssType> {
+        val left = this.visit(node.leftNode).getOrElse { return Result.failure(it) }
+        val right = this.visit(node.rightNode).getOrElse { return Result.failure(it) }
 
         if (left is Null || right is Null) {
             return when (node.operatorToken) {
-                is Token.EE -> TssInt.bool(left == right)
-                is Token.NE -> TssInt.bool(left != right)
-                else -> Null
+                is Token.EE -> Result.success(TssInt.bool(left == right))
+                is Token.NE -> Result.success(TssInt.bool(left != right))
+                else -> Result.success(Null)
             }
         }
 
-        return if (left is TssNumber && right is TssNumber) when (node.operatorToken) {
+        val res = if (left is TssNumber && right is TssNumber) when (node.operatorToken) {
             is Token.PLUS -> left.plus(right)
             is Token.MINUS -> left.minus(right)
             is Token.MUL -> left.times(right)
@@ -78,36 +90,36 @@ class Interpreter(private var context: Context) {
             is Token.GREATEREQUAL -> left.greaterEquals(right)
             is Token.AND -> TssInt(left.and(right).value.toInt())
             is Token.OR -> TssInt(left.and(right).value.toInt())
-            else -> fail(
+            else -> return Result.failure(
                 TypeError(
                     "Cannot find operation '${node.operatorToken}' on Number and Number", node.operatorToken.pos
-                ), "Interpreting"
+                )
             )
         } else if (left is TssString && right is TssString) when (node.operatorToken) {
             is Token.EE -> TssInt.bool(left == right)
             is Token.NE -> TssInt.bool(left != right)
             is Token.PLUS -> left + right
-            else -> fail(
+            else -> return Result.failure(
                 TypeError(
                     "Cannot find operation '${node.operatorToken}' on String and String", node.operatorToken.pos
-                ), "Interpreting"
+                )
             )
         } else if (left is TssString && right is TssNumber) when (node.operatorToken) {
             is Token.MUL -> left * right
             is Token.PLUS -> left + right
             is Token.GET -> left[right]
             is Token.DIV -> left.rem(right)
-            else -> fail(
+            else -> return Result.failure(
                 TypeError(
                     "Cannot find operation '${node.operatorToken}' on String and Number", node.operatorToken.pos
-                ), "Interpreting"
+                )
             )
         } else if (left is TssNumber && right is TssString) when (node.operatorToken) {
             is Token.PLUS -> TssString(Node.StringNode(Token.STRING(left.value.toString() + right, Position.unknown)))
-            else -> fail(
+            else -> return Result.failure(
                 TypeError(
                     "Cannot find operation '${node.operatorToken}' on String and Number", node.operatorToken.pos
-                ), "Interpreting"
+                )
             )
         } else if (left is TssList) when (node.operatorToken) {
             is Token.EE -> TssInt.bool(left == right)
@@ -116,81 +128,83 @@ class Interpreter(private var context: Context) {
             is Token.GET -> left[right]
             is Token.MINUS -> left - right
             is Token.DIV -> left.rem(right)
-            else -> fail(
+            else -> return Result.failure(
                 TypeError(
                     "Operation ${node.operatorToken} is not applicable to List", Position.unknown
-                ), "Interpreting"
+                )
             )
         } else {
-            fail(
+            return Result.failure(
                 TypeError(
                     "Operation ${node.operatorToken} is not applicable to $left and $right", Position.unknown
-                ), "Interpreting"
+                )
             )
         }
+        return Result.success(res)
     }
 
-    private fun visitUnaryOpNode(node: Node.UnaryOpNode): TssType {
-        val number = this.visit(node.node)
-        if (number !is TssNumber) fail(TypeError("Expected Number,got $number", Position.unknown), "Interpreting")
-        return when (node.operatorToken) {
+    private fun visitUnaryOpNode(node: Node.UnaryOpNode): Result<TssType> {
+        val number = this.visit(node.node).getOrElse { return Result.failure(it) }
+        if (number !is TssNumber) return Result.failure(TypeError("Expected Number,got $number", Position.unknown))
+        val res = when (node.operatorToken) {
             is Token.MINUS -> -number
             is Token.PLUS -> number
             is Token.NOT -> TssInt.bool(number.value == 0)
 
-            else -> fail(
-                UnknownNodeError("Found unknown Node $node", node.operatorToken.pos), "Interpreting"
+            else -> return Result.failure(
+                UnknownNodeError("Found unknown Node $node", node.operatorToken.pos)
             )
         }
+        return Result.success(res)
     }
 
-    private fun visitVarAccessNode(node: Node.VarAccessNode): TssType {
-        return this.context.varTable.get(node)
+    private fun visitVarAccessNode(node: Node.VarAccessNode): Result<TssType> {
+        return Result.success(this.context.varTable.get(node).getOrElse { return Result.failure(it) })
     }
 
-    private fun visitVarAssignNode(node: Node.VarAssignNode): TssType {
+    private fun visitVarAssignNode(node: Node.VarAssignNode): Result<TssType> {
         val value = this.visit(node.value)
-        this.context.varTable.set(node, value)
+        this.context.varTable.set(node, value.getOrElse { return Result.failure(it) })
         return value
     }
 
-    private fun visitIfThenNode(node: Node.IfNode): TssType {
-        val bool = visit(node.bool)
+    private fun visitIfThenNode(node: Node.IfNode): Result<TssType> {
+        val bool = visit(node.bool).getOrElse { return Result.failure(it) }
         if (bool == TssInt.True) return visit(node.expr)
         if (node.elseExpr != null) return visit(node.elseExpr)
-        return Null
+        return Result.success(Null)
     }
 
-    private fun visitWhileNode(node: Node.WhileNode): TssType {
-        var bool = visit(node.bool)
+    private fun visitWhileNode(node: Node.WhileNode): Result<TssType> {
+        var bool = visit(node.bool).getOrElse { return Result.failure(it) }
         while (bool == TssInt.True) {
-            val res = visit(node.expr)
-            bool = visit(node.bool)
+            val res = visit(node.expr).getOrElse { return Result.failure(it) }
+            bool = visit(node.bool).getOrElse { return Result.failure(it) }
             when (res) {
-                is TssReturn, is TssBreak -> return res
+                is TssReturn, is TssBreak -> return Result.success(res)
                 else -> {}
             }
         }
-        return Null
+        return Result.success(Null)
     }
 
-    private fun visitForNode(node: Node.ForNode): TssType {
-        val from = visit(node.from)
-        val to = visit(node.to)
-        val step = if (node.step != null) visit(node.step) else TssInt(1)
-        if (from !is TssNumber || to !is TssNumber || step !is TssNumber) fail(
+    private fun visitForNode(node: Node.ForNode): Result<TssType> {
+        val from = visit(node.from).getOrElse { return Result.failure(it) }
+        val to = visit(node.to).getOrElse { return Result.failure(it) }
+        val step = if (node.step != null) visit(node.step).getOrElse { return Result.failure(it) } else TssInt(1)
+        if (from !is TssNumber || to !is TssNumber || step !is TssNumber) return Result.failure(
             TypeError(
                 "Expected Number ,got $from as from, $to as to and $step as step", Position.unknown
-            ), "Interpreting"
+            )
         )
         if (step.greater(TssInt(0)) == TssInt.True) {
             for (i in from.value.toInt()..to.value.toInt() step step.value.toInt()) {
                 val identifier = Node.VarAssignNode(node.identifier, Node.NumberNode(Token.INT(i, Position.unknown)))
-                visit(identifier)
-                when (val res = visit(node.expr)) {
+                visit(identifier).getOrElse { return Result.failure(it) }
+                when (val res = visit(node.expr).getOrElse { return Result.failure(it) }) {
                     is TssReturn, is TssBreak -> {
                         this.context.varTable.remove(Node.VarAccessNode(node.identifier))
-                        return res
+                        return Result.success(res)
                     }
 
                     else -> {}
@@ -199,124 +213,133 @@ class Interpreter(private var context: Context) {
             this.context.varTable.remove(Node.VarAccessNode(node.identifier))
         }
 
-        return Null
+        return Result.success(Null)
     }
 
-    private fun visitFunDefNode(node: Node.FunDefNode): TssType {
+    private fun visitFunDefNode(node: Node.FunDefNode): Result<TssType> {
         val func = TssFunction(node.identifier, node.argTokens, node.bodyNode)
         this.context.varTable.set(
             Node.VarAssignNode(node.identifier, Node.NumberNode(Token.INT(1, Position.unknown))), func
         )
-        return func
+        return Result.success(func)
     }
 
-    private fun visitFunCallNode(node: Node.FunCallNode): TssType {
+    private fun visitFunCallNode(node: Node.FunCallNode): Result<TssType> {
         if (node.identifier.value?.uppercase()!! in this.builtinFunctions) return this.executeBuiltin(node)
-        val func = this.context.varTable.get(Node.VarAccessNode(node.identifier))
-        if (func !is TssFunction) fail(
+        val func = this.context.varTable.get(Node.VarAccessNode(node.identifier)).getOrElse { return Result.failure(it) }
+        if (func !is TssFunction) return Result.failure(
             InvalidSyntaxError(
                 "$func is not a FUN. Try calling without parenthesis", node.identifier.pos
-            ), "Interpreting"
+            )
         )
         return func.execute(node.args)
     }
 
-    private fun visitStringNode(node: Node.StringNode): TssType {
-        return TssString(node)
+    private fun visitStringNode(node: Node.StringNode): Result<TssType> {
+        return Result.success(TssString(node))
     }
 
-    private fun visitListNode(node: Node.ListNode): TssType {
+    private fun visitListNode(node: Node.ListNode): Result<TssType> {
         val listContent = arrayListOf<TssType>()
         for (nd in node.content) {
-            listContent.add(visit(nd))
+            listContent.add(visit(nd).getOrElse { return Result.failure(it) })
         }
-        return TssList(listContent.toTypedArray())
+        return Result.success(TssList(listContent.toTypedArray()))
     }
 
-    private fun visitStatementNode(node: Node.StatementNode): TssType {
+    private fun visitStatementNode(node: Node.StatementNode): Result<TssType> {
         if (node.expressions.size == 1) return visit(node.expressions[0])
         for (nd in node.expressions) {
-            when (val res = visit(nd)) {
-                is TssReturn, is TssBreak -> return res
-                is TssContinue -> return TssBreak()
+            when (val res = visit(nd).getOrElse { return Result.failure(it) }) {
+                is TssReturn, is TssBreak -> return Result.success(res)
+                is TssContinue -> return Result.success(TssBreak())
                 else -> {}
             }
         }
-        return Null
+        return Result.success(Null)
     }
 
-    private fun visitReturnNode(node: Node.ReturnNode): TssType {
-        return if (node.toReturn == null) TssReturn(null)
-        else TssReturn(visit(node.toReturn))
+    private fun visitReturnNode(node: Node.ReturnNode): Result<TssType> {
+        return if (node.toReturn == null) Result.success(TssReturn(null))
+        else Result.success(TssReturn(visit(node.toReturn).getOrElse { return Result.failure(it) }))
     }
 
-    private fun visitContinueNode(node: Node.ContinueNode): TssType {
-        return TssContinue()
+    private fun visitContinueNode(node: Node.ContinueNode): Result<TssType> {
+        return Result.success(TssContinue())
     }
 
-    private fun visitBreakNode(node: Node.BreakNode): TssType {
-        return TssBreak()
+    private fun visitBreakNode(node: Node.BreakNode): Result<TssType> {
+        return Result.success(TssBreak())
     }
 
 
-    private fun executeBuiltin(node: Node.FunCallNode): TssType {
+    private fun executeBuiltin(node: Node.FunCallNode): Result<TssType> {
         when (node.identifier.value?.uppercase()) {
             "PRINT" -> {
                 checkArgSize(1, node)
-                val value = visit(node.args[0])
+                val value = visit(node.args[0]).getOrElse { return Result.failure(it) }
                 if (value !is TssList) print(value.value)
                 else print(value)
             }
 
             "PRINTLN" -> {
                 checkArgSize(1, node)
-                val value = visit(node.args[0])
+                val value = visit(node.args[0]).getOrElse { return Result.failure(it) }
                 if (value !is TssList) println(value.value)
                 else println(value.value.joinToString(prefix = "[", postfix = "]"))
             }
 
             "READ" -> {
                 checkArgSize(0, node)
-                return TssInt(System.`in`.read())
+                return Result.success(TssInt(System.`in`.read()))
             }
 
             "READLINE" -> {
                 checkArgSize(0, node)
-                return TssString(Node.StringNode(Token.STRING(Scanner(System.`in`).nextLine(), node.identifier.pos)))
+                return Result.success(
+                    TssString(
+                        Node.StringNode(
+                            Token.STRING(
+                                Scanner(System.`in`).nextLine(),
+                                node.identifier.pos
+                            )
+                        )
+                    )
+                )
             }
 
             "ERROR" -> {
                 checkArgSize(1, node)
                 val reason = (node.args[0] as Node.StringNode).token.value!!
-                fail(RuntimeError(reason, node.identifier.pos), "Running")
+                return Result.failure(RuntimeError(reason, node.identifier.pos))
             }
 
             "TYPE" -> {
                 checkArgSize(1, node)
-                val value = visit(node.args[0])
+                val value = visit(node.args[0]).getOrElse { return Result.failure(it) }
                 val name = value.javaClass.name.removePrefix("Tss")
-                return TssString(Node.StringNode(Token.STRING(name, node.identifier.pos)))
+                return Result.success(TssString(Node.StringNode(Token.STRING(name, node.identifier.pos))))
             }
 
             "STRING" -> {
                 checkArgSize(1, node)
-                val type = visit(node.args[0])
+                val type = visit(node.args[0]).getOrElse { return Result.failure(it) }
                 val value = if (type is TssList) type.toString() else type.value.toString()
-                return TssString(Node.StringNode(Token.STRING(value, node.identifier.pos)))
+                return Result.success(TssString(Node.StringNode(Token.STRING(value, node.identifier.pos))))
             }
 
             "NUMBER" -> {
                 checkArgSize(1, node)
-                return when (val type = visit(node.args[0])) {
-                    is TssNumber -> type
-                    is Null -> TssInt.False
-                    is TssString -> if (type.value.contains('.')) TssFloat(type.value.toDouble())
-                    else TssInt(type.value.toInt())
+                return when (val type = visit(node.args[0]).getOrElse { return Result.failure(it) }) {
+                    is TssNumber -> Result.success(type)
+                    is Null -> Result.success(TssInt.False)
+                    is TssString -> if (type.value.contains('.')) Result.success(TssFloat(type.value.toDouble()))
+                    else Result.success(TssInt(type.value.toInt()))
 
-                    is TssFunction, is TssList -> fail(
+                    is TssFunction, is TssList -> return Result.failure(
                         RuntimeError(
                             "Cannot convert FUN or List ${node.args[0]} to Number!", node.identifier.pos
-                        ), "Running"
+                        )
                     )
 
                     else -> {
@@ -328,13 +351,13 @@ class Interpreter(private var context: Context) {
 
             "LEN" -> {
                 checkArgSize(1, node)
-                return when (val value = visit(node.args[0])) {
-                    is TssString -> TssInt(value.value.length)
-                    is TssList -> TssInt(value.value.size)
-                    else -> fail(
+                return when (val value = visit(node.args[0]).getOrElse { return Result.failure(it) }) {
+                    is TssString -> Result.success(TssInt(value.value.length))
+                    is TssList -> Result.success(TssInt(value.value.size))
+                    else -> return Result.failure(
                         RuntimeError(
                             "Can only get the length of Strings and Lists, tried $value", node.identifier.pos
-                        ), "Running"
+                        )
                     )
                 }
             }
@@ -350,7 +373,7 @@ class Interpreter(private var context: Context) {
             "CMD" -> {
                 val tssStrings = arrayListOf<TssString>()
                 for (nd in node.args) {
-                    val str = visit(nd)
+                    val str = visit(nd).getOrElse { return Result.failure(it) }
                     tssStrings.add(TssString(Node.StringNode(Token.STRING(str.value.toString(), node.identifier.pos))))
                 }
                 val strings = arrayListOf<String>()
@@ -360,20 +383,24 @@ class Interpreter(private var context: Context) {
             }
 
             "RANDOM" -> {
-                checkArgSize(0,node)
+                checkArgSize(0, node)
                 val value = Math.random()
-                return TssFloat(value)
+                return Result.success(TssFloat(value))
             }
 
             "RUN" -> {
                 checkArgSize(1, node)
-                val value =
-                    executeBuiltin(Node.FunCallNode(Token.IDENTIFIER("STRING", node.identifier.pos), node.args)).value!!
-                if (value !is String) fail(
+                val value = executeBuiltin(
+                    Node.FunCallNode(
+                        Token.IDENTIFIER("STRING", node.identifier.pos),
+                        node.args
+                    )
+                ).getOrElse { return Result.failure(it) }.value!!
+                if (value !is String) return Result.failure(
                     RuntimeError(
                         "The language broke!!! Value converted to String is not a String. Report this error to my github @OffensiverHase",
                         node.identifier.pos
-                    ), "Running"
+                    )
                 )
                 try {
                     val file = File(value)
@@ -383,46 +410,47 @@ class Interpreter(private var context: Context) {
                     } else if (value.endsWith(".tsc")) {
                         val nd = ObjectInputStream(file.inputStream()).readObject() as Node
                         return Interpreter(Context(this.context, "<main>", this.context.varTable, value)).visit(nd)
-                    } else fail(
+                    } else return Result.failure(
                         RuntimeError(
                             "The specified file doesn't have .ts or .tsc file ending", node.identifier.pos
-                        ), "Running"
+                        )
                     )
                 } catch (e: Exception) {
-                    fail(
+                    return Result.failure(
                         RuntimeError(
                             "Failed to load script ${node.args[0]}. Reason: $e", node.identifier.pos
-                        ), "Running"
+                        )
                     )
                 }
             }
 
             else -> println("No builtin fun called ${node.identifier.value}")
         }
-        return Null
+        return Result.success(Null)
     }
 
-    private fun checkArgSize(shouldHave: Int, node: Node.FunCallNode) {
-        if (node.args.size > shouldHave) fail(
+    private fun checkArgSize(shouldHave: Int, node: Node.FunCallNode): Result<Unit> {
+        if (node.args.size > shouldHave) return Result.failure(
             InvalidSyntaxError(
                 "Passed in to many args into FUN ${node.identifier}. Expected $shouldHave, got ${node.args.size}",
                 node.identifier.pos
-            ), "Interpreting"
+            )
         )
-        if (node.args.size < shouldHave) fail(
+        if (node.args.size < shouldHave) return Result.failure(
             InvalidSyntaxError(
                 "Passed in to little args into FUN ${node.identifier}. Expected $shouldHave, got ${node.args.size}",
                 node.identifier.pos
-            ), "Interpreting"
+            )
         )
+        else return Result.success(run {})
     }
 
-    private fun run(fileName: String, content: String): TssType {
+    private fun run(fileName: String, content: String): Result<TssType> {
         val tokenStream = LinkedBlockingQueue<Token>()
         val lexerThread = Thread(Lexer(content, fileName, tokenStream), "Lexer")
         lexerThread.start()
 
-        lateinit var ast: Node
+        var ast: Result<Node> = Result.failure(RuntimeError("ParserThread didn't finish!", Position.unknown))
         val parserThread = Thread({
             ast = Parser(tokenStream).parse()
         }, "Parser")
@@ -432,7 +460,7 @@ class Interpreter(private var context: Context) {
         Thread.currentThread().name = "Interpreter"
         parserThread.join()
 
-        val res = interpreter.visit(ast)
+        val res = interpreter.visit(ast.getOrElse { return Result.failure(it) })
         return res
     }
 }

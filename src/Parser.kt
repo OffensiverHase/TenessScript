@@ -11,23 +11,23 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
         this.currentToken = this.tokenQueue.take()
     }
 
-    fun parse(): Node {
-        if (this.currentToken is Token.EOF) return Node.BreakNode()
+    fun parse(): Result<Node> {
+        if (this.currentToken is Token.EOF) return Result.success(Node.BreakNode())
         val result = this.statement()
-        if (this.currentToken !is Token.EOF) fail(
+        if (this.currentToken !is Token.EOF) return Result.failure(
             InvalidSyntaxError(
                 "Expected expression, got ${this.currentToken}", this.currentToken.pos
-            ), "Parsing"
+            )
         )
         return result
     }
 
-    private fun atom(): Node {
+    private fun atom(): Result<Node> {
         when (this.currentToken) {
             is Token.INT, is Token.FLOAT -> {
                 val token = this.currentToken
                 this.advance()
-                return Node.NumberNode(token)
+                return Result.success(Node.NumberNode(token))
             }
 
             is Token.IDENTIFIER -> {
@@ -38,22 +38,24 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
                     val argNodeList = arrayListOf<Node>()
                     if (this.currentToken is Token.RPAREN) {
                         this.advance()
-                        return Node.FunCallNode(token, argNodeList.toTypedArray())
-                    } else argNodeList.add(this.opExpr())
+                        return Result.success(Node.FunCallNode(token, argNodeList.toTypedArray()))
+                    } else argNodeList.add(this.opExpr().getOrElse {
+                        return Result.failure(it)
+                    })
                     while (this.currentToken is Token.COMMA) {
                         this.advance()
                         val param = this.opExpr()
-                        argNodeList.add(param)
+                        argNodeList.add(param.getOrElse { return Result.failure(it) })
                     }
-                    if (this.currentToken !is Token.RPAREN) fail(
+                    if (this.currentToken !is Token.RPAREN) return Result.failure(
                         InvalidSyntaxError(
                             "Expected ')', got ${this.currentToken}", this.currentToken.pos
-                        ), "Parsing"
+                        )
                     )
                     this.advance()
-                    return Node.FunCallNode(token, argNodeList.toTypedArray())
+                    return Result.success(Node.FunCallNode(token, argNodeList.toTypedArray()))
                 }
-                return Node.VarAccessNode(token)
+                return Result.success(Node.VarAccessNode(token))
             }
 
             is Token.LPAREN -> {
@@ -62,8 +64,8 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
                 if (this.currentToken is Token.RPAREN) {
                     this.advance()
                     return expression
-                } else fail(
-                    InvalidSyntaxError("Expected ')', got ${this.currentToken}", this.currentToken.pos), "Parsing"
+                } else return Result.failure(
+                    InvalidSyntaxError("Expected ')', got ${this.currentToken}", this.currentToken.pos)
                 )
 
             }
@@ -71,7 +73,7 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
             is Token.STRING -> {
                 val token = this.currentToken
                 this.advance()
-                return Node.StringNode(token)
+                return Result.success(Node.StringNode(token))
             }
 
             is Token.LSB -> {
@@ -79,19 +81,19 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
                 this.advance()
                 if (this.currentToken is Token.RSB) this.advance()
                 else {
-                    list.add(this.atom())
+                    list.add(this.atom().getOrElse { return Result.failure(it) })
                     while (this.currentToken is Token.COMMA) {
                         this.advance()
-                        list.add(this.atom())
+                        list.add(this.atom().getOrElse { return Result.failure(it) })
                     }
-                    if (this.currentToken !is Token.RSB) fail(
+                    if (this.currentToken !is Token.RSB) return Result.failure(
                         InvalidSyntaxError(
                             "Expected ']' or ',', got ${this.currentToken}", this.currentToken.pos
-                        ), "Parsing"
+                        )
                     )
                     this.advance()
                 }
-                return Node.ListNode(list.toTypedArray())
+                return Result.success(Node.ListNode(list.toTypedArray()))
             }
 
             is Token.KEYWORD -> {
@@ -112,10 +114,10 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
                             }
 
                             else -> {
-                                fail(
+                                return Result.failure(
                                     InvalidSyntaxError(
                                         "Expected '{' or ':', got ${this.currentToken}", this.currentToken.pos
-                                    ), "Parsing"
+                                    )
                                 )
                             }
                         }
@@ -126,125 +128,157 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
                             elseExpr = when (this.currentToken) {
                                 is Token.CURLYLEFT -> {
                                     this.advance()
-                                    this.statement()
+                                    this.statement().getOrElse { return Result.failure(it) }
                                 }
 
                                 is Token.COLON -> {
                                     this.advance()
-                                    this.expression()
+                                    this.expression().getOrElse { return Result.failure(it) }
                                 }
 
                                 else -> {
-                                    fail(
+                                    return Result.failure(
                                         InvalidSyntaxError(
                                             "Expected '{' or ':', got ${this.currentToken}", this.currentToken.pos
-                                        ), "Parsing"
+                                        )
                                     )
                                 }
                             }
                         }
-                        return Node.IfNode(bool, ifExpr, elseExpr)
+                        return Result.success(
+                            Node.IfNode(bool.getOrElse { return Result.failure(it) },
+                                ifExpr.getOrElse { return Result.failure(it) },
+                                elseExpr
+                            )
+                        )
                     }
 
-                    else -> fail(
+                    else -> return Result.failure(
                         InvalidSyntaxError(
                             "Expected Value or if, got ${this.currentToken}", this.currentToken.pos
-                        ), "Parsing"
+                        )
                     )
                 }
             }
 
             else -> {
                 val token = this.currentToken
-                fail(
+                return Result.failure(
                     InvalidSyntaxError(
                         "Expected Value, got $token", token.pos.copy()
-                    ), "Parsing"
+                    )
                 )
             }
         }
     }
 
 
-    private fun power(): Node {
+    private fun power(): Result<Node> {
         var left = this.atom()
         if (this.currentToken is Token.GET) {
             val operatorToken = this.currentToken
             this.advance()
             val right = this.expression()
-            left = Node.BinOpNode(left, operatorToken, right)
+            left = Result.success(
+                Node.BinOpNode(left.getOrElse { return Result.failure(it) },
+                    operatorToken,
+                    right.getOrElse { return Result.failure(it) })
+            )
         }
         while (this.currentToken is Token.POW) {
             val operatorToken = this.currentToken
             this.advance()
             val right = this.factor()
-            left = Node.BinOpNode(left, operatorToken, right)
+            left = Result.success(Node.BinOpNode(left.getOrElse { return Result.failure(it) },
+                operatorToken,
+                right.getOrElse {
+                    return Result.failure(
+                        it
+                    )
+                })
+            )
         }
         return left
     }
 
-    private fun factor(): Node {
+    private fun factor(): Result<Node> {
         val token = this.currentToken
         while (token is Token.PLUS || token is Token.MINUS) {
             val unary = this.currentToken
             this.advance()
             val right = this.power()
-            return Node.UnaryOpNode(unary, right)
+            return Result.success(Node.UnaryOpNode(unary, right.getOrElse { return Result.failure(it) }))
         }
         return power()
     }
 
-    private fun term(): Node {
-        var left: Node = this.factor()
+    private fun term(): Result<Node> {
+        var left = this.factor()
         while (this.currentToken is Token.MUL || this.currentToken is Token.DIV) {
             val operatorToken = this.currentToken
             this.advance()
             val right = this.factor()
-            left = Node.BinOpNode(left, operatorToken, right)
+            left = Result.success(
+                Node.BinOpNode(left.getOrElse { return Result.failure(it) },
+                    operatorToken,
+                    right.getOrElse { return Result.failure(it) })
+            )
         }
         return left
     }
 
-    private fun arithmExpr(): Node {
-        var left: Node = this.term()
+    private fun arithmExpr(): Result<Node> {
+        var left = this.term()
         while (this.currentToken is Token.PLUS || this.currentToken is Token.MINUS) {
             val operator = this.currentToken
             this.advance()
             val right = this.term()
-            left = Node.BinOpNode(left, operator, right)
+            left = Result.success(
+                Node.BinOpNode(left.getOrElse { return Result.failure(it) },
+                    operator,
+                    right.getOrElse { return Result.failure(it) })
+            )
         }
         return left
     }
 
-    private fun compExpr(): Node {
+    private fun compExpr(): Result<Node> {
         if (this.currentToken is Token.NOT) {
             val operator = this.currentToken
             this.advance()
-            return Node.UnaryOpNode(operator, this.compExpr())
+            return Result.success(Node.UnaryOpNode(operator, this.compExpr().getOrElse { return Result.failure(it) }))
         }
 
-        var left: Node = this.arithmExpr()
+        var left = this.arithmExpr()
         while (this.currentToken is Token.EE || this.currentToken is Token.NE || this.currentToken is Token.LESS || this.currentToken is Token.GREATER || this.currentToken is Token.LESSEQUAL || this.currentToken is Token.GREATEREQUAL) {
             val operator = this.currentToken
             this.advance()
             val right = this.arithmExpr()
-            left = Node.BinOpNode(left, operator, right)
+            left = Result.success(
+                Node.BinOpNode(left.getOrElse { return Result.failure(it) },
+                    operator,
+                    right.getOrElse { return Result.failure(it) })
+            )
         }
         return left
     }
 
-    private fun opExpr(): Node {
-        var left: Node = this.compExpr()
+    private fun opExpr(): Result<Node> {
+        var left = this.compExpr()
         while (this.currentToken is Token.AND || this.currentToken is Token.OR) {
             val operator = this.currentToken
             this.advance()
             val right = this.compExpr()
-            left = Node.BinOpNode(left, operator, right)
+            left = Result.success(
+                Node.BinOpNode(left.getOrElse { return Result.failure(it) },
+                    operator,
+                    right.getOrElse { return Result.failure(it) })
+            )
         }
         return left
     }
 
-    private fun expression(): Node {
+    private fun expression(): Result<Node> {
         ignoreNewLines()
         val token = this.currentToken
         if (token is Token.KEYWORD) when (token.value) {
@@ -264,43 +298,45 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
                     }
 
                     else -> {
-                        fail(
+                        return Result.failure(
                             InvalidSyntaxError(
                                 "Expected '{' or ':', got ${this.currentToken}", this.currentToken.pos
-                            ), "Parsing"
+                            )
                         )
                     }
                 }
-                return Node.WhileNode(bool, expr)
+                return Result.success(Node.WhileNode(bool.getOrElse { return Result.failure(it) },
+                    expr.getOrElse { return Result.failure(it) })
+                )
             }
 
             "FOR" -> {
                 this.advance()
-                if (this.currentToken !is Token.IDENTIFIER) fail(
+                if (this.currentToken !is Token.IDENTIFIER) return Result.failure(
                     InvalidSyntaxError(
                         "Expected identifier, for ${this.currentToken}", this.currentToken.pos
-                    ), "Parsing"
+                    )
                 )
                 val identifier = this.currentToken
                 this.advance()
-                if (this.currentToken !is Token.ASSIGN) fail(
+                if (this.currentToken !is Token.ASSIGN) return Result.failure(
                     InvalidSyntaxError(
                         "Expected <, got ${this.currentToken}", this.currentToken.pos
-                    ), "Parsing"
+                    )
                 )
                 this.advance()
                 val from = this.factor()
-                if (this.currentToken !is Token.KEYWORD || this.currentToken.value != "TO") fail(
+                if (this.currentToken !is Token.KEYWORD || this.currentToken.value != "TO") return Result.failure(
                     InvalidSyntaxError(
                         "Expected TO, for ${this.currentToken}", this.currentToken.pos
-                    ), "Parsing"
+                    )
                 )
                 this.advance()
                 val to = this.arithmExpr()
                 var step: Node? = null
                 if (this.currentToken is Token.KEYWORD && this.currentToken.value == "STEP") {
                     this.advance()
-                    step = this.factor()
+                    step = this.factor().getOrElse { return Result.failure(it) }
                 }
                 val expr = when (this.currentToken) {
                     is Token.CURLYLEFT -> {
@@ -313,28 +349,34 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
                         this.expression()
                     }
 
-                    else -> fail(
+                    else -> return Result.failure(
                         InvalidSyntaxError(
                             "Expected THEN, for ${this.currentToken}", this.currentToken.pos
-                        ), "Parsing"
+                        )
                     )
                 }
-                return Node.ForNode(identifier, from, to, step, expr)
+                return Result.success(
+                    Node.ForNode(identifier,
+                        from.getOrElse { return Result.failure(it) },
+                        to.getOrElse { return Result.failure(it) },
+                        step,
+                        expr.getOrElse { return Result.failure(it) })
+                )
             }
 
             "FUN" -> {
                 this.advance()
-                if (this.currentToken !is Token.IDENTIFIER) fail(
+                if (this.currentToken !is Token.IDENTIFIER) return Result.failure(
                     InvalidSyntaxError(
                         "Expected Identifier, got ${this.currentToken}", this.currentToken.pos
-                    ), "Parsing"
+                    )
                 )
                 val identifier = this.currentToken
                 this.advance()
-                if (this.currentToken !is Token.LPAREN) fail(
+                if (this.currentToken !is Token.LPAREN) return Result.failure(
                     InvalidSyntaxError(
                         "Expected '(', got ${this.currentToken}", this.currentToken.pos
-                    ), "Parsing"
+                    )
                 )
                 this.advance()
                 val argList = arrayListOf<Token.IDENTIFIER>()
@@ -344,19 +386,19 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
                 }
                 while (this.currentToken is Token.COMMA) {
                     this.advance()
-                    if (this.currentToken !is Token.IDENTIFIER) fail(
+                    if (this.currentToken !is Token.IDENTIFIER) return Result.failure(
                         InvalidSyntaxError(
                             "Expected Identifier, got ${this.currentToken}", this.currentToken.pos
-                        ), "Parsing"
+                        )
                     )
                     argList.add(this.currentToken as Token.IDENTIFIER)
                     this.advance()
                 }
                 val argNames = argList.toTypedArray()
-                if (this.currentToken !is Token.RPAREN) fail(
+                if (this.currentToken !is Token.RPAREN) return Result.failure(
                     InvalidSyntaxError(
                         "Expected ')', got ${this.currentToken}", this.currentToken.pos
-                    ), "Parsing"
+                    )
                 )
                 this.advance()
                 val bodyNode = when (this.currentToken) {
@@ -370,29 +412,38 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
                         this.statement()
                     }
 
-                    else -> fail(
+                    else -> return Result.failure(
                         InvalidSyntaxError(
                             "Expected '{', or ':', got ${this.currentToken}", this.currentToken.pos
-                        ), "Parsing"
+                        )
                     )
                 }
-                return Node.FunDefNode(identifier, argNames, bodyNode)
+                return Result.success(
+                    Node.FunDefNode(
+                        identifier,
+                        argNames,
+                        bodyNode.getOrElse { return Result.failure(it) })
+                )
             }
 
             "RETURN" -> {
                 this.advance()
-                if (this.currentToken is Token.NEWLINE || this.currentToken is Token.EOF) return Node.ReturnNode(null)
-                return Node.ReturnNode(this.opExpr())
+                if (this.currentToken is Token.NEWLINE || this.currentToken is Token.EOF) return Result.success(
+                    Node.ReturnNode(
+                        null
+                    )
+                )
+                return Result.success(Node.ReturnNode(this.opExpr().getOrElse { return Result.failure(it) }))
             }
 
             "BREAK" -> {
                 this.advance()
-                return Node.BreakNode()
+                return Result.success(Node.BreakNode())
             }
 
             "CONTINUE" -> {
                 this.advance()
-                return Node.ContinueNode()
+                return Result.success(Node.ContinueNode())
             }
         } else if (this.currentToken is Token.IDENTIFIER) {
             val varName = this.currentToken
@@ -400,25 +451,25 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
                 this.advance() // Advance to the <-
                 this.advance() // Advance past the <-
                 val expr = this.expression()
-                return Node.VarAssignNode(varName, expr)
+                return Result.success(Node.VarAssignNode(varName, expr.getOrElse { return Result.failure(it) }))
             }
         }
         return opExpr()
     }
 
-    private fun statement(): Node {
+    private fun statement(): Result<Node> {
         ignoreNewLines()
         val statements = arrayListOf<Node>()
-        statements.add(this.expression())
+        statements.add(this.expression().getOrElse { return Result.failure(it) })
         while (this.currentToken is Token.NEWLINE) {
             while (this.currentToken is Token.NEWLINE) this.advance()
             if (this.currentToken is Token.CURLYRIGHT || this.currentToken is Token.EOF) {
                 this.advance()
                 break
             }
-            statements.add(this.expression())
+            statements.add(this.expression().getOrElse { return Result.failure(it) })
         }
-        return Node.StatementNode(statements.toTypedArray())
+        return Result.success(Node.StatementNode(statements.toTypedArray()))
     }
 
     private fun ignoreNewLines() {

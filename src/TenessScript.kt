@@ -3,19 +3,21 @@ import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.util.*
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.system.exitProcess
 
 fun compile(fileName: String) {
     val text = try {
         File(fileName).readText()
     } catch (e: Exception) {
-        fail(IOError("Could not read file $fileName", Position.unknown), "Starting")
+        fail(IOError("Could not read file $fileName", Position.unknown))
+        exitProcess(1)
     }
 
     val tokenStream = LinkedBlockingQueue<Token>()
     val lexerThread = Thread(Lexer(text, fileName, tokenStream), "Lexer")
     lexerThread.start()
 
-    lateinit var ast: Node
+    var ast: Result<Node> = Result.failure(RuntimeError("Parser didn't finish!", Position.unknown))
     val parserThread = Thread({
         ast = Parser(tokenStream).parse()
     }, "Parser")
@@ -27,10 +29,14 @@ fun compile(fileName: String) {
 
     try {
         val stream = ObjectOutputStream(tscFile.outputStream())
-        stream.writeObject(ast)
+        stream.writeObject(ast.getOrElse {
+            fail(it as Error)
+            exitProcess(1)
+        })
         stream.close()
     } catch (e: Exception) {
-        fail(IOError("Could not write to $fileName", Position.unknown), "Starting")
+        fail(IOError("Could not write to $fileName", Position.unknown))
+        exitProcess(1)
     }
 }
 
@@ -41,7 +47,8 @@ fun run(fileName: String) {
         stream.close()
         toReturn
     } catch (e: Exception) {
-        fail(IOError("Could not read file $fileName", Position.unknown), "Starting")
+        fail(IOError("Could not read file $fileName", Position.unknown))
+        exitProcess(1)
     }
 
     val varMap = VarMap()
@@ -50,16 +57,21 @@ fun run(fileName: String) {
     val interpreter = Interpreter(Context(null, "\n\t\t<main>", varMap, fileName))
     Thread.currentThread().name = "Interpreter"
 
-    interpreter.visit(node)
+    val res = interpreter.visit(node)
+    res.getOrElse {
+        fail(it as Error)
+        exitProcess(1)
+    }
 }
 
-fun noCompile(fileName: String): TssType {
+fun noCompile(fileName: String) {
     val startContext = Context(null, "\n\t\t<main>", VarMap(), fileName)
 
     val text = try {
         File(fileName).readText()
     } catch (e: Exception) {
-        fail(IOError("Could not read file $fileName", Position.unknown), "Starting")
+        fail(IOError("Could not read file $fileName", Position.unknown))
+        exitProcess(1)
     }
 
     val varMap = startContext.varTable
@@ -69,7 +81,7 @@ fun noCompile(fileName: String): TssType {
     val lexerThread = Thread(Lexer(text, fileName, tokenStream), "Lexer")
     lexerThread.start()
 
-    lateinit var ast: Node
+    var ast: Result<Node> = Result.failure(RuntimeError("Parser didn' finish!", Position.unknown))
     val parserThread = Thread({
         ast = Parser(tokenStream).parse()
     }, "Parser")
@@ -82,9 +94,15 @@ fun noCompile(fileName: String): TssType {
     parserThread.join()
 
     println()
-    val result = interpreter.visit(ast)
+    val result = interpreter.visit(ast.getOrElse {
+        fail(it as Error)
+        exitProcess(1)
+    })
 
-    return (result)
+    result.getOrElse {
+        fail(it as Error)
+        exitProcess(1)
+    }
 }
 
 fun shell() {
@@ -108,7 +126,7 @@ fun shellStart(text: String, startContext: Context): TssType {
     val lexerThread = Thread(Lexer(text, "<stdin>", tokenStream), "Lexer")
     lexerThread.start()
 
-    lateinit var ast: Node
+    var ast: Result<Node> = Result.failure(RuntimeError("Parser didn't finish", Position.unknown))
     val parserThread = Thread({
         ast = Parser(tokenStream).parse()
     }, "Parser")
@@ -119,9 +137,15 @@ fun shellStart(text: String, startContext: Context): TssType {
 
     parserThread.join()
 
-    val result = interpreter.visit(ast)
+    val result = interpreter.visit(ast.getOrElse {
+        fail(it as Error)
+        return Null
+    })
 
-    return (result)
+    return result.getOrElse {
+        fail(it as Error)
+        Null
+    }
 }
 
 
@@ -143,6 +167,7 @@ fun addDefaults(varMap: VarMap) {
     )
 
     Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
-        fail(ExceptionError(throwable, Position.unknown), "Unknown")
+        fail(ExceptionError(throwable, Position.unknown))
+        exitProcess(1)
     }
 }
