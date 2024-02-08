@@ -25,7 +25,10 @@ fun compile(fileName: String) {
 
     val tscFile = File(fileName.removeSuffix(".tss") + ".tsc")
 
-    parserThread.join()
+    if (parserThread.isAlive)
+        parserThread.join()
+    else
+        println("Thread was not alive when trying to join!")
 
     try {
         val stream = ObjectOutputStream(tscFile.outputStream())
@@ -35,7 +38,7 @@ fun compile(fileName: String) {
         })
         stream.close()
     } catch (e: Exception) {
-        fail(IOError("Could not write to $fileName", Position.unknown))
+        fail(IOError("Could not write to $fileName, $e", Position.unknown))
         exitProcess(1)
     }
 }
@@ -47,7 +50,7 @@ fun run(fileName: String) {
         stream.close()
         toReturn
     } catch (e: Exception) {
-        fail(IOError("Could not read file $fileName", Position.unknown))
+        fail(IOError("Could not read file $fileName, $e", Position.unknown))
         exitProcess(1)
     }
 

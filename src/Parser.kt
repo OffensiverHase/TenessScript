@@ -1,6 +1,6 @@
-import java.util.concurrent.BlockingQueue
+import java.util.concurrent.LinkedBlockingQueue
 
-class Parser(private val tokenQueue: BlockingQueue<Token>) {
+class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
     private lateinit var currentToken: Token
 
     init {
@@ -447,7 +447,8 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
             }
         } else if (this.currentToken is Token.IDENTIFIER) {
             val varName = this.currentToken
-            if (this.tokenQueue.element() is Token.ASSIGN) {
+            while (this.tokenQueue.peek() == null) Thread.sleep(0,1)
+            if (this.tokenQueue.peek() is Token.ASSIGN) {
                 this.advance() // Advance to the <-
                 this.advance() // Advance past the <-
                 val expr = this.expression()
