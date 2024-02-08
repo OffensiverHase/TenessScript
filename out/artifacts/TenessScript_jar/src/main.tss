@@ -1,0 +1,65 @@
+
+fun setAt(list, index, value) {
+    newList <- []
+    for i <- 0 to len(list) - 1 {
+        if i = index{
+            newList <- newList + value
+            return newList
+        } else {
+            newList <- newList + list ~ i
+        }
+    }
+    return list
+}
+
+fun nextBracket(text, tokenIndex) { 
+    for i <- tokenIndex to len(text) - 1 {
+        #[# for vscode lint
+        if text ~ i = ']': return i
+    }
+    error('no matching bracket found, started at ' + tokenIndex)
+}
+
+#Start
+
+code <- readline()
+array <- [0]
+brackets <- []
+pointer <- 0
+tokenIndex <- 0
+
+while tokenIndex < len(code) {
+    c <- code ~ tokenIndex
+    if c = '+' {
+        currentVal <- array ~ pointer
+        currentVal <- if currentVal = 255: 0 else: currentVal + 1
+        array <- setAt(array, pointer, currentVal)
+    } else: if c = '-' {
+        currentVal <- array ~ pointer
+        currentVal <- if currentVal = 0: 255 else: currentVal - 1 
+        array <- setAt(array, pointer, currentVal)
+    } else: if c = '<' {
+        if pointer = 0: error('pointer went to -1') else: pointer <- pointer - 1
+    } else: if c = '>' {
+        pointer <- pointer + 1
+        if pointer = len(array): array <- array + 0
+    } else: if c = '.' {
+        println(char(array ~ pointer))
+    } else: if c = ',' {
+        val <- read()
+        array <- setAt(array, pointer, val)
+    } else: if c = '[' {
+        if array ~ pointer = 0{
+            tokenIndex <- nextBracket(code, tokenIndex)
+            continue
+        }
+        if list / tokenIndex = list: list <- list + tokenIndex
+    } else: if c = ']' {
+        if array ~ tokenIndex <> 0 {
+            tokenIndex <- brackets ~ len(brackets) - 1
+        } else:
+            brackets <- brackets - len(brackets) - 1
+    }
+
+    tokenIndex <- tokenIndex + 1
+}

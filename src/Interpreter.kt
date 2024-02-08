@@ -15,6 +15,7 @@ class Interpreter(private var context: Context) {
         "TYPE",
         "STRING",
         "NUMBER",
+        "CHAR",
         "LEN",
         "CLEAR",
         "CMD",
@@ -226,7 +227,8 @@ class Interpreter(private var context: Context) {
 
     private fun visitFunCallNode(node: Node.FunCallNode): Result<TssType> {
         if (node.identifier.value?.uppercase()!! in this.builtinFunctions) return this.executeBuiltin(node)
-        val func = this.context.varTable.get(Node.VarAccessNode(node.identifier)).getOrElse { return Result.failure(it) }
+        val func =
+            this.context.varTable.get(Node.VarAccessNode(node.identifier)).getOrElse { return Result.failure(it) }
         if (func !is TssFunction) return Result.failure(
             InvalidSyntaxError(
                 "$func is not a FUN. Try calling without parenthesis", node.identifier.pos
@@ -300,8 +302,7 @@ class Interpreter(private var context: Context) {
                     TssString(
                         Node.StringNode(
                             Token.STRING(
-                                Scanner(System.`in`).nextLine(),
-                                node.identifier.pos
+                                Scanner(System.`in`).nextLine(), node.identifier.pos
                             )
                         )
                     )
@@ -349,6 +350,23 @@ class Interpreter(private var context: Context) {
                 }
             }
 
+            "CHAR" -> {
+                checkArgSize(1,node)
+                val value = executeBuiltin(
+                    Node.FunCallNode(
+                        Token.IDENTIFIER("NUMBER", node.identifier.pos), node.args
+                    )
+                ).getOrElse { return Result.failure(it) }.value!!
+                if (value !is Number) return Result.failure(
+                    RuntimeError(
+                        "The language broke!!! Value converted to Number is not a Number. Report this error to my github @OffensiverHase",
+                        node.identifier.pos
+                    )
+                )
+                val char = Char(value.toInt())
+                return Result.success(TssString(Node.StringNode(Token.STRING(char.toString(), node.identifier.pos))))
+            }
+
             "LEN" -> {
                 checkArgSize(1, node)
                 return when (val value = visit(node.args[0]).getOrElse { return Result.failure(it) }) {
@@ -392,8 +410,7 @@ class Interpreter(private var context: Context) {
                 checkArgSize(1, node)
                 val value = executeBuiltin(
                     Node.FunCallNode(
-                        Token.IDENTIFIER("STRING", node.identifier.pos),
-                        node.args
+                        Token.IDENTIFIER("STRING", node.identifier.pos), node.args
                     )
                 ).getOrElse { return Result.failure(it) }.value!!
                 if (value !is String) return Result.failure(
@@ -404,7 +421,7 @@ class Interpreter(private var context: Context) {
                 )
                 try {
                     val file = File(value)
-                    if (value.endsWith(".ts")) {
+                    if (value.endsWith(".tss")) {
                         val content = file.readText()
                         return run(value, content)
                     } else if (value.endsWith(".tsc")) {
@@ -430,20 +447,21 @@ class Interpreter(private var context: Context) {
     }
 
     private fun checkArgSize(shouldHave: Int, node: Node.FunCallNode): Result<Unit> {
-        if (node.args.size > shouldHave) return Result.failure(
+        return if (node.args.size > shouldHave) Result.failure(
             InvalidSyntaxError(
                 "Passed in to many args into FUN ${node.identifier}. Expected $shouldHave, got ${node.args.size}",
                 node.identifier.pos
             )
         )
-        if (node.args.size < shouldHave) return Result.failure(
+        else if (node.args.size < shouldHave) Result.failure(
             InvalidSyntaxError(
                 "Passed in to little args into FUN ${node.identifier}. Expected $shouldHave, got ${node.args.size}",
                 node.identifier.pos
             )
         )
-        else return Result.success(run {})
+        else Result.success(run {})
     }
+    //run('out/artifacts/TenessScript_jar/src/main.tss')
 
     private fun run(fileName: String, content: String): Result<TssType> {
         val tokenStream = LinkedBlockingQueue<Token>()

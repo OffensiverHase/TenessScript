@@ -14,7 +14,7 @@ class Parser(private val tokenQueue: BlockingQueue<Token>) {
     fun parse(): Result<Node> {
         if (this.currentToken is Token.EOF) return Result.success(Node.BreakNode())
         val result = this.statement()
-        if (this.currentToken !is Token.EOF) return Result.failure(
+        if (this.currentToken !is Token.EOF && this.currentToken !is Token.NEWLINE) return Result.failure(
             InvalidSyntaxError(
                 "Expected expression, got ${this.currentToken}", this.currentToken.pos
             )
