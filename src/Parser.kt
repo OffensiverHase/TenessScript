@@ -178,7 +178,7 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
         if (this.currentToken is Token.GET) {
             val operatorToken = this.currentToken
             this.advance()
-            val right = this.expression()
+            val right = this.arithmExpr()
             left = Result.success(
                 Node.BinOpNode(left.getOrElse { return Result.failure(it) },
                     operatorToken,

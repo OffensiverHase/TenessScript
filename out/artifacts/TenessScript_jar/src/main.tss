@@ -15,7 +15,7 @@ fun setAt(list, index, value) {
 fun nextBracket(text, tokenIndex) { 
     for i <- tokenIndex to len(text) - 1 {
         #[# for vscode lint
-        if text ~ i = ']': return i
+        if string(text ~ i) = ']': return i
     }
     error('no matching bracket found, started at ' + tokenIndex)
 }
@@ -49,17 +49,28 @@ while tokenIndex < len(code) {
         val <- read()
         array <- setAt(array, pointer, val)
     } else: if c = '[' {
-        if array ~ pointer = 0{
+        if (array ~ pointer) = 0{
             tokenIndex <- nextBracket(code, tokenIndex)
             continue
         }
-        if list / tokenIndex = list: list <- list + tokenIndex
+        if brackets - tokenIndex = brackets: brackets <- brackets + tokenIndex
     } else: if c = ']' {
-        if array ~ tokenIndex <> 0 {
-            tokenIndex <- brackets ~ len(brackets) - 1
-        } else:
-            brackets <- brackets - len(brackets) - 1
+        println('1')
+        if len(brackets) = 0: error('no open bracket found!')
+        println('2')
+        if (array ~ pointer) = 0 {
+            println('3.0')
+            tokenIndex <- brackets ~ (len(brackets) - 1)
+            println('3')
+        } else {
+            println('4.0')
+            brackets <- brackets / (len(brackets) - 1)
+            println('4')
+        }
+        println('5')
     }
 
     tokenIndex <- tokenIndex + 1
 }
+
+println(array)
