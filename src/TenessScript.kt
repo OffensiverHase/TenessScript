@@ -28,7 +28,7 @@ fun compile(fileName: String) {
     if (parserThread.isAlive)
         parserThread.join()
     else
-        println("Thread was not alive when trying to join!")
+        println("Parser was not alive when trying to join!")
 
     try {
         val stream = ObjectOutputStream(tscFile.outputStream())
@@ -109,14 +109,20 @@ fun noCompile(fileName: String) {
 }
 
 fun shell() {
+    println("Welcome to Teness REPL (Read Evaluate Print Loop). Pass in -help for help")
     val scanner = Scanner(System.`in`)
     val startContext = Context(null, "<main>", VarMap(null), "<stdin>")
     addDefaults(startContext.varTable)
     while (true) {
+        Thread.sleep(10)
         print("Teness > ")
         val text = scanner.nextLine()
         if (text.isBlank()) continue
-        if (text == "/stop") break
+        if (text == "-stop") break
+        if (text == "-help") {
+            printHelp()
+            continue
+        }
         val res: TssType = shellStart(text, startContext)
         if (!(res is Null || res is TssBreak || res is TssReturn || res is TssContinue)) {
             println(res)
@@ -173,4 +179,22 @@ fun addDefaults(varMap: VarMap) {
         fail(ExceptionError(throwable, Position.unknown))
         exitProcess(1)
     }
+}
+
+fun printHelp() {
+    println("""
+        The current Interpreter implementation of TenessScript.
+        
+        Executes the given src file or compiles it into tsc bytecode
+        
+        Options:
+            <nothing>       enter the REPL 
+            <file>.tss      compile the file to tsc bytecode
+            <file>.tsc      execute the tsc bytecode
+            -direct         flag for running the given tss file without compiling it
+            -help           shows this help
+            
+        Exit Status:
+        Returns success unless a error occurs
+    """.trimIndent())
 }

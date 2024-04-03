@@ -172,18 +172,38 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
         }
     }
 
-
+    @Suppress( "NAME_SHADOWING")
     private fun power(): Result<Node> {
         var left = this.atom()
-        if (this.currentToken is Token.GET) {
-            val operatorToken = this.currentToken
+        if (this.currentToken is Token.LSB) {
+            val operatorToken = Token.GET(this.currentToken.pos)
             this.advance()
             val right = this.arithmExpr()
+            if (this.currentToken !is Token.RSB) {
+                val e = InvalidSyntaxError("Expected ] after [", this.currentToken.pos)
+                fail(e)
+                return Result.failure(e)
+            }
+            this.advance()
             left = Result.success(
                 Node.BinOpNode(left.getOrElse { return Result.failure(it) },
                     operatorToken,
                     right.getOrElse { return Result.failure(it) })
             )
+            if (this.currentToken is Token.ASSIGN) {
+                this.advance()
+                val right = this.atom()
+                val l = left.getOrElse { return Result.failure(it) }
+                val listNode = if (l.leftNode is Node.ListNode || l.leftNode is Node.VarAccessNode) l.leftNode
+                    else return Result.failure(TypeError("Cannot index non List, got ${l.leftNode}", this.currentToken.pos))
+                val index = if (l.rightNode is Node.NumberNode) l.rightNode
+                    else return Result.failure(TypeError("Cannot index List with non Number, got ${l.rightNode}", this.currentToken.pos))
+                left = Result.success(
+                    Node.ListAssignNode(listNode,
+                        index,
+                        right.getOrElse { return Result.failure(it) })
+                )
+            }
         }
         while (this.currentToken is Token.POW) {
             val operatorToken = this.currentToken

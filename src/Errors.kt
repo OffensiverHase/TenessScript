@@ -4,7 +4,10 @@ open class Error(
     internal val posStart: Position,
 ): Throwable() {
     override fun toString(): String {
-        return "$name: $details, File ${posStart.fileName}, line ${posStart.line + 1}, pos ${posStart.column}"
+        return if (posStart != Position.unknown)
+            "$name: $details, File ${posStart.fileName}, line ${posStart.line + 1}, pos ${posStart.column}"
+        else
+            "$name: $details"
     }
 }
 

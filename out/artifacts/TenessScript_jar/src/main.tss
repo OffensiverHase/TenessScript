@@ -44,7 +44,7 @@ while tokenIndex < len(code) {
         pointer <- pointer + 1
         if pointer = len(array): array <- array + 0
     } else: if c = '.' {
-        println(char(array ~ pointer))
+        print(char(array ~ pointer))
     } else: if c = ',' {
         val <- read()
         array <- setAt(array, pointer, val)
@@ -55,22 +55,16 @@ while tokenIndex < len(code) {
         }
         if brackets - tokenIndex = brackets: brackets <- brackets + tokenIndex
     } else: if c = ']' {
-        println('1')
         if len(brackets) = 0: error('no open bracket found!')
-        println('2')
-        if (array ~ pointer) = 0 {
-            println('3.0')
+        if (array ~ pointer) <> 0 {
             tokenIndex <- brackets ~ (len(brackets) - 1)
-            println('3')
         } else {
-            println('4.0')
             brackets <- brackets / (len(brackets) - 1)
-            println('4')
         }
-        println('5')
     }
 
     tokenIndex <- tokenIndex + 1
 }
 
+println('')
 println(array)

@@ -57,6 +57,8 @@ class Interpreter(private var context: Context) {
             is Node.BreakNode -> visitBreakNode(node)
 
             is Node.ContinueNode -> visitContinueNode(node)
+
+            is Node.ListAssignNode -> visitListAssignNode(node)
         }
     }
 
@@ -259,6 +261,14 @@ class Interpreter(private var context: Context) {
             }
         }
         return Result.success(Null)
+    }
+
+
+    private fun visitListAssignNode(node: Node.ListAssignNode): Result<TssType> {
+        val list = visit(node.listNode).getOrElse { return Result.failure(it) } as TssList
+        val index = visit(node.index).getOrElse { return Result.failure(it) }
+        val value = visit(node.value).getOrElse { return Result.failure(it) }
+        return Result.success(list.set(index, value))
     }
 
     private fun visitReturnNode(node: Node.ReturnNode): Result<TssType> {

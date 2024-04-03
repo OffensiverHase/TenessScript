@@ -7,6 +7,7 @@ Encountered error in stage ${Thread.currentThread().name}:
 """
     )
     showArrowString(error.posStart)
+    System.err.flush()
 }
 
 fun Boolean.toInt() = if (this) 1 else 0

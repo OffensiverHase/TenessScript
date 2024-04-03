@@ -421,6 +421,30 @@ class TssList(array: Array<TssType>) : TssType() {
         new.removeAt(idx)
         return TssList(new.toTypedArray())
     }
+
+    operator fun set(index: TssType, value: TssType): TssList {
+        if (index !is TssNumber) {
+            fail(
+                InvalidSyntaxError(
+                    "Can only index List with a Number, got $index", Position.unknown
+                )
+            )
+            exitProcess(1)
+        }
+        var idx = index.value.toInt()
+        if (idx < 0) idx += this.value.size
+        else if (idx > this.value.size) {
+            fail(
+                NoSuchVarError(
+                    "Index $idx is out of bounds for size ${this.value.size}", Position.unknown
+                )
+            )
+            exitProcess(1)
+        }
+        val new = this.value.toMutableList()
+        new[idx] = value
+        return TssList(new.toTypedArray())
+    }
 }
 
 class TssReturn(override val value: TssType?) : TssType() {

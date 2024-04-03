@@ -1,6 +1,18 @@
+import org.bytedeco.llvm.LLVM.LLVMBuilderRef
+import org.bytedeco.llvm.LLVM.LLVMContextRef
+import org.bytedeco.llvm.LLVM.LLVMModuleRef
+import org.bytedeco.llvm.LLVM.LLVMValueRef
 import java.io.Serializable
 
+val theContext = LLVMContextRef()
+val irBuilder = LLVMBuilderRef()
+val module = LLVMModuleRef()
+val namedValues = mutableMapOf<String, LLVMValueRef>()
+
 sealed class Node : Serializable {
+
+    //abstract fun codeGen(): LLVMValueRef
+
     class NumberNode(val token: Token) : Node() {
         override fun toString(): String {
             return token.toString()
@@ -81,6 +93,12 @@ sealed class Node : Serializable {
     class StatementNode(val expressions: Array<Node>) : Node() {
         override fun toString(): String {
             return expressions.joinToString("\n")
+        }
+    }
+
+    class ListAssignNode(val listNode: Node, val index: Node.NumberNode, val value: Node) : Node() {
+        override fun toString(): String {
+            return "$listNode[$index] <- $value"
         }
     }
 

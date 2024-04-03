@@ -15,6 +15,7 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
         for (i in 97..122) s.append(i.toChar())
         s.append('_')
         s.append('$')
+        s.deleteCharAt(27) //Delete the '['
         letters = s.toString()
 
         lettersDigits = digits + letters
@@ -37,97 +38,97 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
                 }
 
                 '\n', ';' -> {
-                    tokenQueue.put(Token.NEWLINE(this.pos))
+                    tokenQueue.put(Token.NEWLINE(this.pos.copy()))
                     this.advance()
                 }
 
                 '+' -> {
-                    tokenQueue.put(Token.PLUS(this.pos))
+                    tokenQueue.put(Token.PLUS(this.pos.copy()))
                     this.advance()
                 }
 
                 '-' -> {
-                    tokenQueue.put(Token.MINUS(this.pos))
+                    tokenQueue.put(Token.MINUS(this.pos.copy()))
                     this.advance()
                 }
 
                 '*' -> {
-                    tokenQueue.put(Token.MUL(this.pos))
+                    tokenQueue.put(Token.MUL(this.pos.copy()))
                     this.advance()
                 }
 
                 '/' -> {
-                    tokenQueue.put(Token.DIV(this.pos))
+                    tokenQueue.put(Token.DIV(this.pos.copy()))
                     this.advance()
                 }
 
                 '^' -> {
-                    tokenQueue.put(Token.POW(this.pos))
+                    tokenQueue.put(Token.POW(this.pos.copy()))
                     this.advance()
                 }
 
                 '(' -> {
-                    tokenQueue.put(Token.LPAREN(this.pos))
+                    tokenQueue.put(Token.LPAREN(this.pos.copy()))
                     this.advance()
                 }
 
                 ')' -> {
-                    tokenQueue.put(Token.RPAREN(this.pos))
+                    tokenQueue.put(Token.RPAREN(this.pos.copy()))
                     this.advance()
                 }
 
                 '!' -> {
-                    tokenQueue.put(Token.NOT(this.pos))
+                    tokenQueue.put(Token.NOT(this.pos.copy()))
                     this.advance()
                 }
 
                 '=' -> {
-                    tokenQueue.put(Token.EE(this.pos))
+                    tokenQueue.put(Token.EE(this.pos.copy()))
                     this.advance()
                 }
 
                 '&' -> {
-                    tokenQueue.put(Token.AND(this.pos))
+                    tokenQueue.put(Token.AND(this.pos.copy()))
                     this.advance()
                 }
 
                 '|' -> {
-                    tokenQueue.put(Token.OR(this.pos))
+                    tokenQueue.put(Token.OR(this.pos.copy()))
                     this.advance()
                 }
 
                 ',' -> {
-                    tokenQueue.put(Token.COMMA(this.pos))
+                    tokenQueue.put(Token.COMMA(this.pos.copy()))
                     this.advance()
                 }
 
                 '[' -> {
-                    tokenQueue.put(Token.LSB(this.pos))
+                    tokenQueue.put(Token.LSB(this.pos.copy()))
                     this.advance()
                 }
 
                 ']' -> {
-                    tokenQueue.put(Token.RSB(this.pos))
+                    tokenQueue.put(Token.RSB(this.pos.copy()))
                     this.advance()
                 }
 
                 '~' -> {
-                    tokenQueue.put(Token.GET(this.pos))
+                    tokenQueue.put(Token.GET(this.pos.copy()))
                     this.advance()
                 }
 
                 ':' -> {
-                    tokenQueue.put(Token.COLON(this.pos))
+                    tokenQueue.put(Token.COLON(this.pos.copy()))
                     this.advance()
                 }
 
                 '{' -> {
-                    tokenQueue.put(Token.CURLYLEFT(this.pos))
+                    tokenQueue.put(Token.CURLYLEFT(this.pos.copy()))
                     this.advance()
                 }
 
                 '}' -> {
-                    tokenQueue.put(Token.CURLYRIGHT(this.pos))
+                    tokenQueue.put(Token.CURLYRIGHT(this.pos.copy()))
                     this.advance()
                 }
 
@@ -152,13 +153,13 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
                 }
 
                 else -> {
-                    fail(IllegalCharError("Unknown char ${this.currentChar}", this.pos))
-                    tokenQueue.put(Token.EOF(this.pos))
+                    fail(IllegalCharError("Unknown char ${this.currentChar}", this.pos.copy()))
+                    tokenQueue.put(Token.EOF(this.pos.copy()))
                     break
                 }
             }
         }
-        tokenQueue.put(Token.EOF(this.pos))
+        tokenQueue.put(Token.EOF(this.pos.copy()))
     }
 
     private fun makeIdentifier(): Token {
@@ -187,12 +188,12 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
             numberString += currentChar
             this.advance()
         }
-        return if (dotCount == 0) Token.INT(numberString.toInt(), this.pos)
-        else Token.FLOAT(numberString.toFloat(), this.pos)
+        return if (dotCount == 0) Token.INT(numberString.toInt(), this.pos.copy())
+        else Token.FLOAT(numberString.toFloat(), this.pos.copy())
     }
 
     private fun makeString(): Token {
-        val pos = this.pos
+        val pos = this.pos.copy()
         this.advance()
         var string = ""
         var escape = false
@@ -220,34 +221,34 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
         this.advance()
         return when (this.currentChar) {
             '=' -> {
-                val pos = this.pos
+                val pos = this.pos.copy()
                 this.advance()
                 Token.LESSEQUAL(pos)
             }
 
             '>' -> {
-                val pos = this.pos
+                val pos = this.pos.copy()
                 this.advance()
                 Token.NE(pos)
             }
 
             '-' -> {
-                val pos = this.pos
+                val pos = this.pos.copy()
                 this.advance()
                 Token.ASSIGN(pos)
             }
 
-            else -> Token.LESS(this.pos)
+            else -> Token.LESS(this.pos.copy())
         }
     }
 
     private fun makeBiggerThings(): Token {
         this.advance()
         return if (this.currentChar == '=') {
-            val pos = this.pos
+            val pos = this.pos.copy()
             this.advance()
             Token.GREATEREQUAL(pos)
-        } else Token.GREATER(this.pos)
+        } else Token.GREATER(this.pos.copy())
     }
 
     override fun run() {
