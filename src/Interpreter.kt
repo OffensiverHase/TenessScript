@@ -54,11 +54,17 @@ class Interpreter(private var context: Context) {
 
             is Node.ReturnNode -> visitReturnNode(node)
 
-            is Node.BreakNode -> visitBreakNode(node)
+            is Node.BreakNode -> visitBreakNode()
 
-            is Node.ContinueNode -> visitContinueNode(node)
+            is Node.ContinueNode -> visitContinueNode()
 
             is Node.ListAssignNode -> visitListAssignNode(node)
+
+            is Node.ObjectNode -> visitObjectNode(node)
+
+            is Node.ObjectAssignNode -> visitObjectAssignNode(node)
+
+            is Node.ObjectReadNode -> visitObjectReadNode(node)
         }
     }
 
@@ -271,16 +277,35 @@ class Interpreter(private var context: Context) {
         return Result.success(list.set(index, value))
     }
 
+    private fun visitObjectNode(node: Node.ObjectNode): Result<TssType> {
+        val newMap = mutableMapOf<String, TssType>()
+        node.map.forEach { (key, value) ->
+            newMap[key.value.toString()] = visit(value).getOrElse { return Result.failure(it) }
+        }
+        return Result.success(TssObject(newMap))
+    }
+
+    private fun visitObjectReadNode(node: Node.ObjectReadNode): Result<TssType> {
+        val obj = visit(node.obj).getOrElse { return Result.failure(it) } as TssObject
+        return Result.success(obj.get(node.key))
+    }
+
+    private fun visitObjectAssignNode(node: Node.ObjectAssignNode): Result<TssType> {
+        val obj = visit(node.obj).getOrElse { return Result.failure(it) } as TssObject
+        val value = visit(node.value).getOrElse { return Result.failure(it) }
+        return Result.success(obj.set(node.key, value))
+    }
+
     private fun visitReturnNode(node: Node.ReturnNode): Result<TssType> {
         return if (node.toReturn == null) Result.success(TssReturn(null))
         else Result.success(TssReturn(visit(node.toReturn).getOrElse { return Result.failure(it) }))
     }
 
-    private fun visitContinueNode(node: Node.ContinueNode): Result<TssType> {
+    private fun visitContinueNode(): Result<TssType> {
         return Result.success(TssContinue())
     }
 
-    private fun visitBreakNode(node: Node.BreakNode): Result<TssType> {
+    private fun visitBreakNode(): Result<TssType> {
         return Result.success(TssBreak())
     }
 
@@ -297,8 +322,9 @@ class Interpreter(private var context: Context) {
             "PRINTLN" -> {
                 checkArgSize(1, node)
                 val value = visit(node.args[0]).getOrElse { return Result.failure(it) }
-                if (value !is TssList) println(value.value)
-                else println(value.value.joinToString(prefix = "[", postfix = "]"))
+                if (value !is TssList && value !is TssObject) println(value.value)
+                else if (value is TssObject) println(value.toString())
+                else if (value is TssList) println(value.value.joinToString(prefix = "[", postfix = "]"))
             }
 
             "READ" -> {

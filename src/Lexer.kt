@@ -132,6 +132,11 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
                     this.advance()
                 }
 
+                '.' -> {
+                    tokenQueue.put(Token.DOT(this.pos.copy()))
+                    this.advance()
+                }
+
                 '<' -> {
                     tokenQueue.put(makeSmallerThings())
                 }

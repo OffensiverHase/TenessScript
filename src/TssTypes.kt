@@ -447,6 +447,38 @@ class TssList(array: Array<TssType>) : TssType() {
     }
 }
 
+class TssObject(override val value: Map<String, TssType>) : TssType() {
+    override fun equals(other: Any?): Boolean {
+        if (other !is TssObject)
+            return false
+        return this.value == other.value
+    }
+
+    override fun hashCode(): Int {
+        return value.hashCode()
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder("object {\n")
+        value.forEach { (key, value) ->
+            sb.append("\t$key <- $value\n")
+        }
+        sb.append('}')
+        return sb.toString()
+    }
+
+    fun get(key: Token): TssType {
+        return this.value[key.value.toString()] ?: Null
+    }
+
+    fun set(key: Token, value: TssType): TssType {
+        val new = this.value.toMutableMap()
+        new[key.value.toString()] = value
+        return TssObject(new)
+    }
+
+}
+
 class TssReturn(override val value: TssType?) : TssType() {
     override fun equals(other: Any?): Boolean {
         return false

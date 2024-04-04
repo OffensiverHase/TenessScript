@@ -31,11 +31,12 @@ sealed class Token(private val type: String, val value: String? = null, val pos:
     class NEWLINE(pos: Position) : Token("\\n", pos = pos)
     class CURLYLEFT(pos: Position) : Token("{", pos = pos)
     class CURLYRIGHT(pos: Position) : Token("}", pos = pos)
+    class DOT(pos: Position) : Token(".", pos = pos)
     class EOF(pos: Position) : Token("'end of file'", pos = pos)
 
     companion object {
         val keywords = arrayOf(
-            "VAR", "IF", "THEN", "ELSE", "FOR", "TO", "STEP", "WHILE", "FUN", "END", "RETURN", "BREAK", "CONTINUE"
+            "VAR", "IF", "THEN", "ELSE", "FOR", "TO", "STEP", "WHILE", "FUN", "END", "RETURN", "BREAK", "CONTINUE", "OBJECT"
         )
     }
 

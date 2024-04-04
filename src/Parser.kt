@@ -54,6 +54,20 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
                     )
                     this.advance()
                     return Result.success(Node.FunCallNode(token, argNodeList.toTypedArray()))
+                } else if (this.currentToken is Token.DOT) {
+                    this.advance()
+                    if (this.currentToken !is Token.IDENTIFIER) {
+                        val e = InvalidSyntaxError("Expected indetifier after '.', got ${this.currentToken}", this.currentToken.pos)
+                        return Result.failure(e)
+                    }
+                    val key = this.currentToken
+                    this.advance()
+                    if (this.currentToken is Token.ASSIGN) {
+                        this.advance()
+                        val value = this.atom().getOrElse { return Result.failure(it) }
+                        return Result.success(Node.ObjectAssignNode(Node.VarAccessNode(token), key, value))
+                    }
+                    return Result.success(Node.ObjectReadNode(Node.VarAccessNode(token), key))
                 }
                 return Result.success(Node.VarAccessNode(token))
             }
@@ -153,6 +167,36 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
                         )
                     }
 
+                    "OBJECT" -> {
+                        this.advance()
+                        if (this.currentToken !is Token.CURLYLEFT) {
+                            val e = InvalidSyntaxError("Expected { after keyword object, got ${this.currentToken}", this.currentToken.pos)
+                            return Result.failure(e)
+                        }
+                        this.advance()
+                        this.ignoreNewLines()
+                        val map = mutableMapOf<Token, Node>()
+                        while (this.currentToken is Token.IDENTIFIER) {
+                            val key = this.currentToken
+                            this.advance()
+                            if (this.currentToken !is Token.ASSIGN) {
+                                val e = InvalidSyntaxError("Expected <- , got ${this.currentToken}", this.currentToken.pos)
+                                return Result.failure(e)
+                            }
+                            this.advance()
+                            val value = this.atom()
+                            map[key] = value.getOrElse { return Result.failure(it) }
+                            if (this.currentToken !is Token.NEWLINE) {
+                                val e = InvalidSyntaxError("Expected newline, ';' or }, got ${this.currentToken}", this.currentToken.pos)
+                                return Result.failure(e)
+                            }
+                            this.advance()
+                            this.ignoreNewLines()
+                        }
+                        if (this.currentToken is Token.CURLYRIGHT) this.advance()
+                        return Result.success(Node.ObjectNode(map))
+                    }
+
                     else -> return Result.failure(
                         InvalidSyntaxError(
                             "Expected Value or if, got ${this.currentToken}", this.currentToken.pos
@@ -181,7 +225,6 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
             val right = this.arithmExpr()
             if (this.currentToken !is Token.RSB) {
                 val e = InvalidSyntaxError("Expected ] after [", this.currentToken.pos)
-                fail(e)
                 return Result.failure(e)
             }
             this.advance()

@@ -1,17 +1,7 @@
-import org.bytedeco.llvm.LLVM.LLVMBuilderRef
-import org.bytedeco.llvm.LLVM.LLVMContextRef
-import org.bytedeco.llvm.LLVM.LLVMModuleRef
-import org.bytedeco.llvm.LLVM.LLVMValueRef
 import java.io.Serializable
 
-val theContext = LLVMContextRef()
-val irBuilder = LLVMBuilderRef()
-val module = LLVMModuleRef()
-val namedValues = mutableMapOf<String, LLVMValueRef>()
 
 sealed class Node : Serializable {
-
-    //abstract fun codeGen(): LLVMValueRef
 
     class NumberNode(val token: Token) : Node() {
         override fun toString(): String {
@@ -96,9 +86,32 @@ sealed class Node : Serializable {
         }
     }
 
-    class ListAssignNode(val listNode: Node, val index: Node.NumberNode, val value: Node) : Node() {
+    class ListAssignNode(val listNode: Node, val index: NumberNode, val value: Node) : Node() {
         override fun toString(): String {
             return "$listNode[$index] <- $value"
+        }
+    }
+
+    class ObjectNode(val map: MutableMap<Token, Node>) : Node() {
+        override fun toString(): String {
+            val sb = StringBuilder("object {\n")
+            map.forEach { (key, value) ->
+                sb.append("\t$key <- $value\n")
+            }
+            sb.append('}')
+            return sb.toString()
+        }
+    }
+
+    class ObjectAssignNode(val obj: Node, val key: Token, val value: Node) : Node() {
+        override fun toString(): String {
+            return "$obj.$key <- $value"
+        }
+    }
+
+    class ObjectReadNode(val obj: Node, val key: Token) : Node() {
+        override fun toString(): String {
+            return "$obj.$key"
         }
     }
 

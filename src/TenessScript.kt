@@ -84,7 +84,7 @@ fun noCompile(fileName: String) {
     val lexerThread = Thread(Lexer(text, fileName, tokenStream), "Lexer")
     lexerThread.start()
 
-    var ast: Result<Node> = Result.failure(RuntimeError("Parser didn' finish!", Position.unknown))
+    var ast: Result<Node> = Result.failure(RuntimeError("Parser didn't finish!", Position.unknown))
     val parserThread = Thread({
         ast = Parser(tokenStream).parse()
     }, "Parser")
@@ -195,6 +195,6 @@ fun printHelp() {
             -help           shows this help
             
         Exit Status:
-        Returns success unless a error occurs
+            Returns success unless a error occurs
     """.trimIndent())
 }
