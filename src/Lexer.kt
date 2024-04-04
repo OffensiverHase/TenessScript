@@ -38,97 +38,97 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
                 }
 
                 '\n', ';' -> {
-                    tokenQueue.put(Token.NEWLINE(this.pos.copy()))
+                    tokenQueue.put(Token(Token.NEWLINE, null,this.pos.copy()))
                     this.advance()
                 }
 
                 '+' -> {
-                    tokenQueue.put(Token.PLUS(this.pos.copy()))
+                    tokenQueue.put(Token(Token.PLUS,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '-' -> {
-                    tokenQueue.put(Token.MINUS(this.pos.copy()))
+                    tokenQueue.put(Token(Token.MINUS,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '*' -> {
-                    tokenQueue.put(Token.MUL(this.pos.copy()))
+                    tokenQueue.put(Token(Token.MUL,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '/' -> {
-                    tokenQueue.put(Token.DIV(this.pos.copy()))
+                    tokenQueue.put(Token(Token.DIV,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '^' -> {
-                    tokenQueue.put(Token.POW(this.pos.copy()))
+                    tokenQueue.put(Token(Token.POW,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '(' -> {
-                    tokenQueue.put(Token.LPAREN(this.pos.copy()))
+                    tokenQueue.put(Token(Token.LPAREN,null,this.pos.copy()))
                     this.advance()
                 }
 
                 ')' -> {
-                    tokenQueue.put(Token.RPAREN(this.pos.copy()))
+                    tokenQueue.put(Token(Token.RPAREN,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '!' -> {
-                    tokenQueue.put(Token.NOT(this.pos.copy()))
+                    tokenQueue.put(Token(Token.NOT,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '=' -> {
-                    tokenQueue.put(Token.EE(this.pos.copy()))
+                    tokenQueue.put(Token(Token.EQUALS,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '&' -> {
-                    tokenQueue.put(Token.AND(this.pos.copy()))
+                    tokenQueue.put(Token(Token.AND,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '|' -> {
-                    tokenQueue.put(Token.OR(this.pos.copy()))
+                    tokenQueue.put(Token(Token.OR,null,this.pos.copy()))
                     this.advance()
                 }
 
                 ',' -> {
-                    tokenQueue.put(Token.COMMA(this.pos.copy()))
+                    tokenQueue.put(Token(Token.COMMA,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '[' -> {
-                    tokenQueue.put(Token.LSB(this.pos.copy()))
+                    tokenQueue.put(Token(Token.LSQUARE,null,this.pos.copy()))
                     this.advance()
                 }
 
                 ']' -> {
-                    tokenQueue.put(Token.RSB(this.pos.copy()))
+                    tokenQueue.put(Token(Token.RSQUARE,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '~' -> {
-                    tokenQueue.put(Token.GET(this.pos.copy()))
+                    tokenQueue.put(Token(Token.GET,null,this.pos.copy()))
                     this.advance()
                 }
 
                 ':' -> {
-                    tokenQueue.put(Token.COLON(this.pos.copy()))
+                    tokenQueue.put(Token(Token.COLON,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '{' -> {
-                    tokenQueue.put(Token.CURLYLEFT(this.pos.copy()))
+                    tokenQueue.put(Token(Token.LCURLY,null,this.pos.copy()))
                     this.advance()
                 }
 
                 '}' -> {
-                    tokenQueue.put(Token.CURLYRIGHT(this.pos.copy()))
+                    tokenQueue.put(Token(Token.RCURLY,null,this.pos.copy()))
                     this.advance()
                 }
 
@@ -158,12 +158,12 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
 
                 else -> {
                     fail(IllegalCharError("Unknown char ${this.currentChar}", this.pos.copy()))
-                    tokenQueue.put(Token.EOF(this.pos.copy()))
+                    tokenQueue.put(Token(Token.EOF,null,this.pos.copy()))
                     break
                 }
             }
         }
-        tokenQueue.put(Token.EOF(this.pos.copy()))
+        tokenQueue.put(Token(Token.EOF,null,this.pos.copy()))
     }
 
     private fun makeIdentifier(): Token {
@@ -175,10 +175,10 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
             this.advance()
         }
 
-        return if (idString.uppercase(Locale.getDefault()) in Token.keywords) Token.KEYWORD(
+        return if (idString.uppercase(Locale.getDefault()) in Token.keywords) Token(Token.KEYWORD,
             idString.uppercase(Locale.getDefault()), startPos
         )
-        else Token.IDENTIFIER(idString, startPos)
+        else Token(Token.IDENTIFIER,idString, startPos)
     }
 
     private fun makeNumber(): Token {
@@ -192,8 +192,8 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
             numberString += currentChar
             this.advance()
         }
-        return if (dotCount == 0) Token.INT(numberString.toInt(), this.pos.copy())
-        else Token.FLOAT(numberString.toFloat(), this.pos.copy())
+        return if (dotCount == 0) Token(Token.INT,numberString.toInt().toString(), this.pos.copy())
+        else Token(Token.FLOAT,numberString.toFloat().toString(), this.pos.copy())
     }
 
     private fun makeString(): Token {
@@ -211,7 +211,7 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
         }
         if (this.currentChar == null) fail(InvalidSyntaxError("Unclosed String Literal", pos))
         this.advance()
-        return Token.STRING(string, pos)
+        return Token(Token.STRING,string, pos)
     }
 
     private fun removeComment() {
@@ -227,22 +227,22 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
             '=' -> {
                 val pos = this.pos.copy()
                 this.advance()
-                Token.LESSEQUAL(pos)
+                Token(Token.LESSEQUAL,null,pos)
             }
 
             '>' -> {
                 val pos = this.pos.copy()
                 this.advance()
-                Token.NE(pos)
+                Token(Token.UNEQUALS,null,pos)
             }
 
             '-' -> {
                 val pos = this.pos.copy()
                 this.advance()
-                Token.ASSIGN(pos)
+                Token(Token.ASSIGN,null,pos)
             }
 
-            else -> Token.LESS(this.pos.copy())
+            else -> Token(Token.LESS,null,this.pos.copy())
         }
     }
 
@@ -251,15 +251,15 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
         return if (this.currentChar == '=') {
             val pos = this.pos.copy()
             this.advance()
-            Token.GREATEREQUAL(pos)
-        } else Token.GREATER(this.pos.copy())
+            Token(Token.GREATEREQUAL,null,pos)
+        } else Token(Token.GREATER,null,this.pos.copy())
     }
 
     private fun makeDotThings(): Token {
         val pos = this.pos.copy()
         this.advance()
-        return if (this.currentChar != '.') Token.DOT(pos)
-        else Token.TO(pos)
+        return if (this.currentChar != '.') Token(Token.DOT,null,pos)
+        else Token(Token.TO,null,pos)
     }
 
     override fun run() {

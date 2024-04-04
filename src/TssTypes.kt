@@ -261,7 +261,7 @@ class TssInt(override val value: Int) : TssNumber() {
     }
 }
 
-class TssFunction(val identifier: Token, private val args: Array<Token.IDENTIFIER>, private val bodyNode: Node) : TssType() {
+class TssFunction(val identifier: Token, private val args: Array<Token>, private val bodyNode: Node) : TssType() {
     override val value = "<${identifier.value}(${args.joinToString { it.value!! }})>"
 
     override fun toString(): String {
@@ -317,18 +317,18 @@ class TssString(node: Node.StringNode) : TssType() {
 
     operator fun plus(other: TssString): TssString {
         val str = this.value + other.value
-        return TssString(Node.StringNode(Token.STRING(str, this.pos)))
+        return TssString(Node.StringNode(Token(Token.STRING,str, this.pos)))
     }
 
     operator fun plus(other: TssNumber): TssString {
         val str = this.value + other.value
-        return TssString(Node.StringNode(Token.STRING(str, this.pos)))
+        return TssString(Node.StringNode(Token(Token.STRING,str, this.pos)))
     }
 
     operator fun times(times: TssNumber): TssString {
         var str = ""
         for (i in 0..times.value.toInt()) str += this.value
-        return TssString(Node.StringNode(Token.STRING(str, this.pos)))
+        return TssString(Node.StringNode(Token(Token.STRING,str, this.pos)))
     }
 
     override fun toString(): String {
@@ -336,13 +336,13 @@ class TssString(node: Node.StringNode) : TssType() {
     }
 
     operator fun get(index: TssNumber): TssType {
-        return TssString(Node.StringNode(Token.STRING(this.value[index.value.toInt()].toString(), Position.unknown)))
+        return TssString(Node.StringNode(Token(Token.STRING,this.value[index.value.toInt()].toString(), Position.unknown)))
     }
 
     fun rem(index: TssNumber): TssString {
         val new = this.value.toMutableList()
         new.removeAt(index.value.toInt())
-        return TssString(Node.StringNode(Token.STRING(String(new.toTypedArray().toCharArray()), Position.unknown)))
+        return TssString(Node.StringNode(Token(Token.STRING,String(new.toTypedArray().toCharArray()), Position.unknown)))
     }
 
 }

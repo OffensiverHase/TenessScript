@@ -62,7 +62,7 @@ sealed class Node : Serializable {
         }
     }
 
-    class FunDefNode(val identifier: Token, val argTokens: Array<Token.IDENTIFIER>, val bodyNode: Node) : Node() {
+    class FunDefNode(val identifier: Token, val argTokens: Array<Token>, val bodyNode: Node) : Node() {
         override fun toString(): String {
             return "FUN $identifier (${argTokens.joinToString()}) $bodyNode"
         }

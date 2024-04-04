@@ -161,17 +161,17 @@ fun shellStart(text: String, startContext: Context): TssType {
 fun addDefaults(varMap: VarMap) {
     varMap.set(
         Node.VarAssignNode(
-            Token.IDENTIFIER("null", Position.unknown), Node.NumberNode(Token.INT(0, Position.unknown))
+            Token(Token.IDENTIFIER,"null", Position.unknown), Node.NumberNode(Token(Token.INT,0.toString(), Position.unknown))
         ), Null
     )
     varMap.set(
         Node.VarAssignNode(
-            Token.IDENTIFIER("true", Position.unknown), Node.NumberNode(Token.INT(1, Position.unknown))
+            Token(Token.IDENTIFIER,"true", Position.unknown), Node.NumberNode(Token(Token.INT,1.toString(), Position.unknown))
         ), TssInt.True
     )
     varMap.set(
         Node.VarAssignNode(
-            Token.IDENTIFIER("false", Position.unknown), Node.NumberNode(Token.INT(0, Position.unknown))
+            Token(Token.IDENTIFIER,"false", Position.unknown), Node.NumberNode(Token(Token.INT,0.toString(), Position.unknown))
         ), TssInt.False
     )
 
