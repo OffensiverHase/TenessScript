@@ -12,7 +12,7 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
     }
 
     fun parse(): Result<Node> {
-        if (this.currentToken is Token.EOF) return Result.success(Node.BreakNode())
+        if (this.currentToken is Token.EOF) return Result.success(Node.BreakNode)
         val result = this.statement()
         if (this.currentToken !is Token.EOF && this.currentToken !is Token.NEWLINE) return Result.failure(
             InvalidSyntaxError(
@@ -39,9 +39,7 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
                     if (this.currentToken is Token.RPAREN) {
                         this.advance()
                         return Result.success(Node.FunCallNode(token, argNodeList.toTypedArray()))
-                    } else argNodeList.add(this.opExpr().getOrElse {
-                        return Result.failure(it)
-                    })
+                    } else argNodeList.add(this.opExpr().getOrElse { return Result.failure(it) })
                     while (this.currentToken is Token.COMMA) {
                         this.advance()
                         val param = this.opExpr()
@@ -199,7 +197,7 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
 
                     else -> return Result.failure(
                         InvalidSyntaxError(
-                            "Expected Value or if, got ${this.currentToken}", this.currentToken.pos
+                            "Expected identifier, literal or if, got ${this.currentToken}", this.currentToken.pos
                         )
                     )
                 }
@@ -209,7 +207,7 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
                 val token = this.currentToken
                 return Result.failure(
                     InvalidSyntaxError(
-                        "Expected Value, got $token", token.pos.copy()
+                        "Expected identifier, literal or if got $token", token.pos.copy()
                     )
                 )
             }
@@ -224,7 +222,7 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
             this.advance()
             val right = this.arithmExpr()
             if (this.currentToken !is Token.RSB) {
-                val e = InvalidSyntaxError("Expected ] after [", this.currentToken.pos)
+                val e = InvalidSyntaxError("Expected ] after [ with list index", this.currentToken.pos)
                 return Result.failure(e)
             }
             this.advance()
@@ -237,9 +235,9 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
                 this.advance()
                 val right = this.atom()
                 val l = left.getOrElse { return Result.failure(it) }
-                val listNode = if (l.leftNode is Node.ListNode || l.leftNode is Node.VarAccessNode) l.leftNode
+                val listNode = if (l.leftNode is Node.ListNode || l.leftNode is Node.VarAccessNode || l.leftNode is Node.ObjectReadNode) l.leftNode
                     else return Result.failure(TypeError("Cannot index non List, got ${l.leftNode}", this.currentToken.pos))
-                val index = if (l.rightNode is Node.NumberNode) l.rightNode
+                val index = if (l.rightNode is Node.NumberNode || l.rightNode is Node.VarAccessNode || l.leftNode is Node.ObjectReadNode) l.rightNode
                     else return Result.failure(TypeError("Cannot index List with non Number, got ${l.rightNode}", this.currentToken.pos))
                 left = Result.success(
                     Node.ListAssignNode(listNode,
@@ -377,21 +375,21 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
                 this.advance()
                 if (this.currentToken !is Token.IDENTIFIER) return Result.failure(
                     InvalidSyntaxError(
-                        "Expected identifier, for ${this.currentToken}", this.currentToken.pos
+                        "Expected identifier, in for, got ${this.currentToken}", this.currentToken.pos
                     )
                 )
                 val identifier = this.currentToken
                 this.advance()
                 if (this.currentToken !is Token.ASSIGN) return Result.failure(
                     InvalidSyntaxError(
-                        "Expected <, got ${this.currentToken}", this.currentToken.pos
+                        "Expected <-, got ${this.currentToken}", this.currentToken.pos
                     )
                 )
                 this.advance()
                 val from = this.factor()
-                if (this.currentToken !is Token.KEYWORD || this.currentToken.value != "TO") return Result.failure(
+                if (this.currentToken !is Token.TO) return Result.failure(
                     InvalidSyntaxError(
-                        "Expected TO, for ${this.currentToken}", this.currentToken.pos
+                        "Expected .. in for, got ${this.currentToken}", this.currentToken.pos
                     )
                 )
                 this.advance()
@@ -414,7 +412,7 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
 
                     else -> return Result.failure(
                         InvalidSyntaxError(
-                            "Expected THEN, for ${this.currentToken}", this.currentToken.pos
+                            "Expected { or :, got ${this.currentToken}", this.currentToken.pos
                         )
                     )
                 }
@@ -501,12 +499,12 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
 
             "BREAK" -> {
                 this.advance()
-                return Result.success(Node.BreakNode())
+                return Result.success(Node.BreakNode)
             }
 
             "CONTINUE" -> {
                 this.advance()
-                return Result.success(Node.ContinueNode())
+                return Result.success(Node.ContinueNode)
             }
         } else if (this.currentToken is Token.IDENTIFIER) {
             val varName = this.currentToken

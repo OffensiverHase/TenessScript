@@ -1,4 +1,4 @@
-class Context(val parent: Context? = null, val name: String, val varTable: VarMap, val fileName: String) {
+class Context(private val parent: Context? = null, val name: String, val varTable: VarMap, val fileName: String) {
     override fun toString(): String {
         return if (parent == null) this.name
         else """

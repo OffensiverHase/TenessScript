@@ -86,7 +86,7 @@ sealed class Node : Serializable {
         }
     }
 
-    class ListAssignNode(val listNode: Node, val index: NumberNode, val value: Node) : Node() {
+    class ListAssignNode(val listNode: Node, val index: Node, val value: Node) : Node() {
         override fun toString(): String {
             return "$listNode[$index] <- $value"
         }
@@ -122,13 +122,15 @@ sealed class Node : Serializable {
         }
     }
 
-    class BreakNode : Node() {
+    data object BreakNode : Node() {
+        private fun readResolve(): Any = BreakNode
         override fun toString(): String {
             return "break "
         }
     }
 
-    class ContinueNode : Node() {
+    data object ContinueNode : Node() {
+        private fun readResolve(): Any = ContinueNode
         override fun toString(): String {
             return "continue "
         }

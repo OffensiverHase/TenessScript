@@ -1,6 +1,6 @@
 open class Error(
     private val name: String,
-    internal val details: String,
+    private val details: String,
     internal val posStart: Position,
 ): Throwable() {
     override fun toString(): String {

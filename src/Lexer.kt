@@ -133,8 +133,7 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
                 }
 
                 '.' -> {
-                    tokenQueue.put(Token.DOT(this.pos.copy()))
-                    this.advance()
+                    tokenQueue.put(makeDotThings())
                 }
 
                 '<' -> {
@@ -254,6 +253,13 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
             this.advance()
             Token.GREATEREQUAL(pos)
         } else Token.GREATER(this.pos.copy())
+    }
+
+    private fun makeDotThings(): Token {
+        val pos = this.pos.copy()
+        this.advance()
+        return if (this.currentChar != '.') Token.DOT(pos)
+        else Token.TO(pos)
     }
 
     override fun run() {

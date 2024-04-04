@@ -20,7 +20,8 @@ class Interpreter(private var context: Context) {
         "CLEAR",
         "CMD",
         "RUN",
-        "RANDOM"
+        "RANDOM",
+        "CONTEXT"
     )
 
     fun visit(node: Node): Result<TssType> {
@@ -54,10 +55,6 @@ class Interpreter(private var context: Context) {
 
             is Node.ReturnNode -> visitReturnNode(node)
 
-            is Node.BreakNode -> visitBreakNode()
-
-            is Node.ContinueNode -> visitContinueNode()
-
             is Node.ListAssignNode -> visitListAssignNode(node)
 
             is Node.ObjectNode -> visitObjectNode(node)
@@ -65,6 +62,10 @@ class Interpreter(private var context: Context) {
             is Node.ObjectAssignNode -> visitObjectAssignNode(node)
 
             is Node.ObjectReadNode -> visitObjectReadNode(node)
+
+            is Node.BreakNode -> visitBreakNode()
+
+            is Node.ContinueNode -> visitContinueNode()
         }
     }
 
@@ -238,8 +239,8 @@ class Interpreter(private var context: Context) {
         val func =
             this.context.varTable.get(Node.VarAccessNode(node.identifier)).getOrElse { return Result.failure(it) }
         if (func !is TssFunction) return Result.failure(
-            InvalidSyntaxError(
-                "$func is not a FUN. Try calling without parenthesis", node.identifier.pos
+            TypeError(
+                "$func is not a function. Try calling without parenthesis", node.identifier.pos
             )
         )
         return func.execute(node.args)
@@ -440,6 +441,12 @@ class Interpreter(private var context: Context) {
                 checkArgSize(0, node)
                 val value = Math.random()
                 return Result.success(TssFloat(value))
+            }
+
+            "CONTEXT" -> {
+                checkArgSize(0, node)
+                val value = this.context.name
+                return Result.success(TssString(Node.StringNode(Token.STRING(value, node.identifier.pos))))
             }
 
             "RUN" -> {

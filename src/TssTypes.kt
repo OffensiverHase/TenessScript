@@ -168,7 +168,7 @@ class TssInt(override val value: Int) : TssNumber() {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
             if (otherVal == 0) {
-                fail(RuntimeError("Division by zero!: ${this.value} / $otherVal", Position.unknown))
+                fail(RuntimeError("Division by zero!: ${this.value} / 0", Position.unknown))
                 return TssFloat(Double.NaN)
             }
             return TssInt(this.value / otherVal)
@@ -261,7 +261,7 @@ class TssInt(override val value: Int) : TssNumber() {
     }
 }
 
-class TssFunction(val identifier: Token, val args: Array<Token.IDENTIFIER>, val bodyNode: Node) : TssType() {
+class TssFunction(val identifier: Token, private val args: Array<Token.IDENTIFIER>, private val bodyNode: Node) : TssType() {
     override val value = "<${identifier.value}(${args.joinToString { it.value!! }})>"
 
     override fun toString(): String {
