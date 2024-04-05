@@ -167,12 +167,12 @@ fun addDefaults(varMap: VarMap) {
     varMap.set(
         Node.VarAssignNode(
             Token(Token.IDENTIFIER,"true", Position.unknown), Node.NumberNode(Token(Token.INT,1.toString(), Position.unknown))
-        ), TssInt.True
+        ), TssBool.True
     )
     varMap.set(
         Node.VarAssignNode(
             Token(Token.IDENTIFIER,"false", Position.unknown), Node.NumberNode(Token(Token.INT,0.toString(), Position.unknown))
-        ), TssInt.False
+        ), TssBool.False
     )
 
     Thread.setDefaultUncaughtExceptionHandler { _, throwable ->

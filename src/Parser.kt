@@ -341,7 +341,7 @@ class Parser(private val tokenQueue: LinkedBlockingQueue<Token>) {
 
     private fun opExpr(): Result<Node> {
         var left = this.compExpr()
-        while (this.currentToken.type == Token.AND || this.currentToken.type == Token.OR) {
+        while (this.currentToken.type == Token.AND || this.currentToken.type == Token.OR || this.currentToken.type == Token.XOR) {
             val operator = this.currentToken
             this.advance()
             val right = this.compExpr()

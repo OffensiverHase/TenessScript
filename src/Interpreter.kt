@@ -80,8 +80,8 @@ class Interpreter(private var context: Context) {
 
         if (left is Null || right is Null) {
             return when (node.operatorToken.type) {
-                Token.EQUALS -> Result.success(TssInt.bool(left == right))
-                Token.UNEQUALS -> Result.success(TssInt.bool(left != right))
+                Token.EQUALS -> Result.success(TssBool.bool(left == right))
+                Token.UNEQUALS -> Result.success(TssBool.bool(left != right))
                 else -> Result.success(Null)
             }
         }
@@ -92,22 +92,23 @@ class Interpreter(private var context: Context) {
             Token.MUL -> left.times(right)
             Token.DIV -> left.div(right)
             Token.POW -> left.pow(right)
-            Token.EQUALS -> TssInt.bool(left == right)
-            Token.UNEQUALS -> TssInt.bool(left != right)
+            Token.EQUALS -> TssBool.bool(left == right)
+            Token.UNEQUALS -> TssBool.bool(left != right)
             Token.LESS -> left.less(right)
             Token.GREATER -> left.greater(right)
             Token.LESSEQUAL -> left.lessEquals(right)
             Token.GREATEREQUAL -> left.greaterEquals(right)
             Token.AND -> TssInt(left.and(right).value.toInt())
-            Token.OR -> TssInt(left.and(right).value.toInt())
+            Token.OR -> TssInt(left.or(right).value.toInt())
+            Token.XOR -> TssInt(left.xor(right).value.toInt())
             else -> return Result.failure(
                 TypeError(
                     "Cannot find operation '${node.operatorToken}' on Number and Number", node.operatorToken.pos
                 )
             )
         } else if (left is TssString && right is TssString) when (node.operatorToken.type) {
-            Token.EQUALS -> TssInt.bool(left == right)
-            Token.UNEQUALS -> TssInt.bool(left != right)
+            Token.EQUALS -> TssBool.bool(left == right)
+            Token.UNEQUALS -> TssBool.bool(left != right)
             Token.PLUS -> left + right
             else -> return Result.failure(
                 TypeError(
@@ -128,7 +129,7 @@ class Interpreter(private var context: Context) {
             Token.PLUS -> TssString(
                 Node.StringNode(
                     Token(
-                        Token.STRING, left.value.toString() + right, Position.unknown
+                        Token.STRING, left.value.toString() + right, node.operatorToken.pos
                     )
                 )
             )
@@ -138,22 +139,28 @@ class Interpreter(private var context: Context) {
                     "Cannot find operation '${node.operatorToken}' on String and Number", node.operatorToken.pos
                 )
             )
+
+        } else if (left is TssBool && right is TssBool) when (node.operatorToken.type) {
+            Token.AND -> left.and(right)
+            Token.OR -> left.or(right)
+            Token.XOR -> left.xor(right)
+            else -> return Result.failure(TypeError("Operation ${node.operatorToken} is not applicable to List", node.operatorToken.pos))
         } else if (left is TssList) when (node.operatorToken.type) {
-            Token.EQUALS -> TssInt.bool(left == right)
-            Token.UNEQUALS -> TssInt.bool(left != right)
+            Token.EQUALS -> TssBool.bool(left == right)
+            Token.UNEQUALS -> TssBool.bool(left != right)
             Token.PLUS -> left + right
             Token.GET -> left[right]
             Token.MINUS -> left - right
             Token.DIV -> left.rem(right)
             else -> return Result.failure(
                 TypeError(
-                    "Operation ${node.operatorToken} is not applicable to List", Position.unknown
+                    "Operation ${node.operatorToken} is not applicable to List", node.operatorToken.pos
                 )
             )
         } else {
             return Result.failure(
                 TypeError(
-                    "Operation ${node.operatorToken} is not applicable to $left and $right", Position.unknown
+                    "Operation ${node.operatorToken} is not applicable to $left and $right", node.operatorToken.pos
                 )
             )
         }
@@ -162,17 +169,38 @@ class Interpreter(private var context: Context) {
 
     private fun visitUnaryOpNode(node: Node.UnaryOpNode): Result<TssType> {
         val number = this.visit(node.node).getOrElse { return Result.failure(it) }
-        if (number !is TssNumber) return Result.failure(TypeError("Expected Number,got $number", Position.unknown))
-        val res = when (node.operatorToken.type) {
-            Token.MINUS -> -number
-            Token.PLUS -> number
-            Token.NOT -> TssInt.bool(number.value == 0)
+        if (number !is TssNumber && number !is TssBool) return Result.failure(
+            TypeError(
+                "Expected Number or Bool,got $number",
+                node.operatorToken.pos
+            )
+        )
+        if (number is TssNumber) {
+            return Result.success(
+                when (node.operatorToken.type) {
+                    Token.MINUS -> -number
+                    Token.PLUS -> number
+                    Token.NOT -> number.xor(TssInt(0b11111111))
 
-            else -> return Result.failure(
-                UnknownNodeError("Found unknown Node $node", node.operatorToken.pos)
+                    else -> return Result.failure(
+                        UnknownNodeError("Found unknown Node $node", node.operatorToken.pos)
+                    )
+                }
+            )
+        } else {
+            return Result.success(
+                when (node.operatorToken.type) {
+                    Token.NOT -> (number as TssBool).not()
+                    else -> return Result.failure(
+                        UnknownNodeError(
+                            "Cannot perform ${node.operatorToken} on Bool, got $node",
+                            node.operatorToken.pos
+                        )
+                    )
+                }
             )
         }
-        return Result.success(res)
+
     }
 
     private fun visitVarAccessNode(node: Node.VarAccessNode): Result<TssType> {
@@ -187,14 +215,14 @@ class Interpreter(private var context: Context) {
 
     private fun visitIfThenNode(node: Node.IfNode): Result<TssType> {
         val bool = visit(node.bool).getOrElse { return Result.failure(it) }
-        if (bool == TssInt.True) return visit(node.expr)
+        if (bool == TssBool.True) return visit(node.expr)
         if (node.elseExpr != null) return visit(node.elseExpr)
         return Result.success(Null)
     }
 
     private fun visitWhileNode(node: Node.WhileNode): Result<TssType> {
         var bool = visit(node.bool).getOrElse { return Result.failure(it) }
-        while (bool == TssInt.True) {
+        while (bool == TssBool.True) {
             val res = visit(node.expr).getOrElse { return Result.failure(it) }
             bool = visit(node.bool).getOrElse { return Result.failure(it) }
             when (res) {
@@ -211,13 +239,13 @@ class Interpreter(private var context: Context) {
         val step = if (node.step != null) visit(node.step).getOrElse { return Result.failure(it) } else TssInt(1)
         if (from !is TssNumber || to !is TssNumber || step !is TssNumber) return Result.failure(
             TypeError(
-                "Expected Number ,got $from as from, $to as to and $step as step", Position.unknown
+                "Expected Number ,got $from as from, $to as to and $step as step", node.identifier.pos
             )
         )
-        if (step.greater(TssInt(0)) == TssInt.True) {
+        if (step.greater(TssInt(0)) == TssBool.True) {
             for (i in from.value.toInt()..to.value.toInt() step step.value.toInt()) {
                 val identifier = Node.VarAssignNode(
-                    node.identifier, Node.NumberNode(Token(Token.INT, i.toString(), Position.unknown))
+                    node.identifier, Node.NumberNode(Token(Token.INT, i.toString(), node.identifier.pos))
                 )
                 visit(identifier).getOrElse { return Result.failure(it) }
                 when (val res = visit(node.expr).getOrElse { return Result.failure(it) }) {
@@ -238,7 +266,7 @@ class Interpreter(private var context: Context) {
     private fun visitFunDefNode(node: Node.FunDefNode): Result<TssType> {
         val func = TssFunction(node.identifier, node.argTokens, node.bodyNode)
         this.context.varTable.set(
-            Node.VarAssignNode(node.identifier, Node.NumberNode(Token(Token.INT, 1.toString(), Position.unknown))), func
+            Node.VarAssignNode(node.identifier, Node.NumberNode(Token(Token.INT, 1.toString(), node.identifier.pos))), func
         )
         return Result.success(func)
     }
@@ -365,21 +393,21 @@ class Interpreter(private var context: Context) {
                 checkArgSize(1, node)
                 val value = visit(node.args[0]).getOrElse { return Result.failure(it) }
                 val name = value.javaClass.name.removePrefix("Tss")
-                return Result.success(TssString(Node.StringNode(Token(Token.STRING,name, node.identifier.pos))))
+                return Result.success(TssString(Node.StringNode(Token(Token.STRING, name, node.identifier.pos))))
             }
 
             "STRING" -> {
                 checkArgSize(1, node)
                 val type = visit(node.args[0]).getOrElse { return Result.failure(it) }
                 val value = if (type is TssList) type.toString() else type.value.toString()
-                return Result.success(TssString(Node.StringNode(Token(Token.STRING,value, node.identifier.pos))))
+                return Result.success(TssString(Node.StringNode(Token(Token.STRING, value, node.identifier.pos))))
             }
 
             "NUMBER" -> {
                 checkArgSize(1, node)
                 return when (val type = visit(node.args[0]).getOrElse { return Result.failure(it) }) {
                     is TssNumber -> Result.success(type)
-                    is Null -> Result.success(TssInt.False)
+                    is Null -> Result.success(TssBool.False)
                     is TssString -> if (type.value.contains('.')) Result.success(TssFloat(type.value.toDouble()))
                     else Result.success(TssInt(type.value.toInt()))
 
@@ -400,7 +428,7 @@ class Interpreter(private var context: Context) {
                 checkArgSize(1, node)
                 val value = executeBuiltin(
                     Node.FunCallNode(
-                        Token(Token.IDENTIFIER,"NUMBER", node.identifier.pos), node.args
+                        Token(Token.IDENTIFIER, "NUMBER", node.identifier.pos), node.args
                     )
                 ).getOrElse { return Result.failure(it) }.value!!
                 if (value !is Number) return Result.failure(
@@ -410,7 +438,17 @@ class Interpreter(private var context: Context) {
                     )
                 )
                 val char = Char(value.toInt())
-                return Result.success(TssString(Node.StringNode(Token(Token.STRING,char.toString(), node.identifier.pos))))
+                return Result.success(
+                    TssString(
+                        Node.StringNode(
+                            Token(
+                                Token.STRING,
+                                char.toString(),
+                                node.identifier.pos
+                            )
+                        )
+                    )
+                )
             }
 
             "LEN" -> {
@@ -438,7 +476,17 @@ class Interpreter(private var context: Context) {
                 val tssStrings = arrayListOf<TssString>()
                 for (nd in node.args) {
                     val str = visit(nd).getOrElse { return Result.failure(it) }
-                    tssStrings.add(TssString(Node.StringNode(Token(Token.STRING,str.value.toString(), node.identifier.pos))))
+                    tssStrings.add(
+                        TssString(
+                            Node.StringNode(
+                                Token(
+                                    Token.STRING,
+                                    str.value.toString(),
+                                    node.identifier.pos
+                                )
+                            )
+                        )
+                    )
                 }
                 val strings = arrayListOf<String>()
                 for (str in tssStrings) strings.add(str.value)
@@ -455,14 +503,14 @@ class Interpreter(private var context: Context) {
             "CONTEXT" -> {
                 checkArgSize(0, node)
                 val value = this.context.name
-                return Result.success(TssString(Node.StringNode(Token(Token.STRING,value, node.identifier.pos))))
+                return Result.success(TssString(Node.StringNode(Token(Token.STRING, value, node.identifier.pos))))
             }
 
             "RUN" -> {
                 checkArgSize(1, node)
                 val value = executeBuiltin(
                     Node.FunCallNode(
-                        Token(Token.IDENTIFIER,"STRING", node.identifier.pos), node.args
+                        Token(Token.IDENTIFIER, "STRING", node.identifier.pos), node.args
                     )
                 ).getOrElse { return Result.failure(it) }.value!!
                 if (value !is String) return Result.failure(
@@ -520,7 +568,7 @@ class Interpreter(private var context: Context) {
         val lexerThread = Thread(Lexer(content, fileName, tokenStream), "Lexer")
         lexerThread.start()
 
-        var ast: Result<Node> = Result.failure(RuntimeError("ParserThread didn't finish!", Position.unknown))
+        var ast: Result<Node> = Result.failure(RuntimeError("Parser didn't finish!", Position.unknown))
         val parserThread = Thread({
             ast = Parser(tokenStream).parse()
         }, "Parser")

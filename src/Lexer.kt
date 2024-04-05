@@ -112,11 +112,6 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
                     this.advance()
                 }
 
-                '~' -> {
-                    tokenQueue.put(Token(Token.GET,null,this.pos.copy()))
-                    this.advance()
-                }
-
                 ':' -> {
                     tokenQueue.put(Token(Token.COLON,null,this.pos.copy()))
                     this.advance()
@@ -129,6 +124,11 @@ class Lexer(private val text: String, fileName: String, private val tokenQueue: 
 
                 '}' -> {
                     tokenQueue.put(Token(Token.RCURLY,null,this.pos.copy()))
+                    this.advance()
+                }
+
+                '~' -> {
+                    tokenQueue.put(Token(Token.XOR, null, this.pos.copy()))
                     this.advance()
                 }
 

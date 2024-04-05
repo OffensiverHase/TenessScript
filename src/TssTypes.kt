@@ -1,3 +1,4 @@
+import TssBool.Companion.bool
 import kotlin.math.pow
 import kotlin.system.exitProcess
 
@@ -19,10 +20,11 @@ sealed class TssNumber : TssType() {
     abstract fun pow(other: TssNumber): TssNumber
     abstract fun and(other: TssNumber): TssNumber
     abstract fun or(other: TssNumber): TssNumber
-    abstract fun less(other: TssNumber): TssNumber
-    abstract fun greater(other: TssNumber): TssNumber
-    abstract fun lessEquals(other: TssNumber): TssNumber
-    abstract fun greaterEquals(other: TssNumber): TssNumber
+    abstract fun xor(other: TssNumber): TssNumber
+    abstract fun less(other: TssNumber): TssBool
+    abstract fun greater(other: TssNumber): TssBool
+    abstract fun lessEquals(other: TssNumber): TssBool
+    abstract fun greaterEquals(other: TssNumber): TssBool
 }
 
 object Null : TssType() {
@@ -74,24 +76,24 @@ class TssFloat(override val value: Double) : TssNumber() {
         return TssFloat(this.value.pow(otherVal))
     }
 
-    override fun less(other: TssNumber): TssNumber {
+    override fun less(other: TssNumber): TssBool {
         val otherVal = other.value.toDouble()
-        return TssInt.bool(this.value < otherVal)
+        return bool(this.value < otherVal)
     }
 
-    override fun greater(other: TssNumber): TssNumber {
+    override fun greater(other: TssNumber): TssBool {
         val otherVal = other.value.toDouble()
-        return TssInt.bool(this.value > otherVal)
+        return bool(this.value > otherVal)
     }
 
-    override fun lessEquals(other: TssNumber): TssNumber {
+    override fun lessEquals(other: TssNumber): TssBool {
         val otherVal = other.value.toDouble()
-        return TssInt.bool(this.value <= otherVal)
+        return bool(this.value <= otherVal)
     }
 
-    override fun greaterEquals(other: TssNumber): TssNumber {
+    override fun greaterEquals(other: TssNumber): TssBool {
         val otherVal = other.value.toDouble()
-        return TssInt.bool(this.value >= otherVal)
+        return bool(this.value >= otherVal)
     }
 
     override fun and(other: TssNumber): TssNumber {
@@ -102,6 +104,11 @@ class TssFloat(override val value: Double) : TssNumber() {
     override fun or(other: TssNumber): TssNumber {
         val otherVal = other.value.toInt()
         return TssInt(this.value.toInt().or(otherVal))
+    }
+
+    override fun xor(other: TssNumber): TssNumber {
+        val otherVal = other.value.toInt()
+        return TssInt(this.value.toInt().xor(otherVal))
     }
 
     override fun equals(other: Any?): Boolean {
@@ -120,19 +127,44 @@ class TssFloat(override val value: Double) : TssNumber() {
 
 }
 
-class TssInt(override val value: Int) : TssNumber() {
+class TssBool(override val value: Boolean) : TssType() {
+    override fun equals(other: Any?): Boolean {
+        if (other !is TssBool) return false
+        return this.value == other.value
+    }
+
+    override fun hashCode(): Int {
+        return value.hashCode()
+    }
+
+    fun and(other: TssBool) : TssBool {
+        return bool(this.value && other.value)
+    }
+    fun or(other: TssBool) : TssBool {
+        return bool(this.value || other.value)
+    }
+    fun xor(other: TssBool) : TssBool {
+        return bool(this.value.xor(other.value))
+    }
+    fun not() : TssBool {
+        return bool(!this.value)
+    }
+
     companion object {
-        fun bool(value: Boolean) = TssInt(value.toInt())
-        val True: TssInt
+        fun bool(value: Boolean) = TssBool(value)
+        val True: TssBool
             get() {
                 return bool(true)
             }
 
-        val False: TssInt
+        val False: TssBool
             get() {
                 return bool(false)
             }
     }
+}
+
+class TssInt(override val value: Int) : TssNumber() {
 
     override fun plus(other: TssNumber): TssNumber {
         if (other.value is Int) {
@@ -196,7 +228,7 @@ class TssInt(override val value: Int) : TssNumber() {
         }
     }
 
-    override fun less(other: TssNumber): TssNumber {
+    override fun less(other: TssNumber): TssBool {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
             return bool(this.value < otherVal)
@@ -206,7 +238,7 @@ class TssInt(override val value: Int) : TssNumber() {
         }
     }
 
-    override fun greater(other: TssNumber): TssNumber {
+    override fun greater(other: TssNumber): TssBool {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
             return bool(this.value > otherVal)
@@ -216,7 +248,7 @@ class TssInt(override val value: Int) : TssNumber() {
         }
     }
 
-    override fun lessEquals(other: TssNumber): TssNumber {
+    override fun lessEquals(other: TssNumber): TssBool {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
             return bool(this.value <= otherVal)
@@ -226,7 +258,7 @@ class TssInt(override val value: Int) : TssNumber() {
         }
     }
 
-    override fun greaterEquals(other: TssNumber): TssNumber {
+    override fun greaterEquals(other: TssNumber): TssBool {
         if (other.value is Int) {
             val otherVal = other.value.toInt()
             return bool(this.value >= otherVal)
@@ -244,6 +276,11 @@ class TssInt(override val value: Int) : TssNumber() {
     override fun or(other: TssNumber): TssNumber {
         val otherVal = other.value.toInt()
         return TssInt(this.value.or(otherVal))
+    }
+
+    override fun xor(other: TssNumber): TssNumber {
+        val otherVal = other.value.toInt()
+        return TssInt(this.value.xor(otherVal))
     }
 
     override fun equals(other: Any?): Boolean {
@@ -317,18 +354,18 @@ class TssString(node: Node.StringNode) : TssType() {
 
     operator fun plus(other: TssString): TssString {
         val str = this.value + other.value
-        return TssString(Node.StringNode(Token(Token.STRING,str, this.pos)))
+        return TssString(Node.StringNode(Token(Token.STRING, str, this.pos)))
     }
 
     operator fun plus(other: TssNumber): TssString {
         val str = this.value + other.value
-        return TssString(Node.StringNode(Token(Token.STRING,str, this.pos)))
+        return TssString(Node.StringNode(Token(Token.STRING, str, this.pos)))
     }
 
     operator fun times(times: TssNumber): TssString {
         var str = ""
         for (i in 0..times.value.toInt()) str += this.value
-        return TssString(Node.StringNode(Token(Token.STRING,str, this.pos)))
+        return TssString(Node.StringNode(Token(Token.STRING, str, this.pos)))
     }
 
     override fun toString(): String {
@@ -336,13 +373,29 @@ class TssString(node: Node.StringNode) : TssType() {
     }
 
     operator fun get(index: TssNumber): TssType {
-        return TssString(Node.StringNode(Token(Token.STRING,this.value[index.value.toInt()].toString(), Position.unknown)))
+        return TssString(
+            Node.StringNode(
+                Token(
+                    Token.STRING,
+                    this.value[index.value.toInt()].toString(),
+                    Position.unknown
+                )
+            )
+        )
     }
 
     fun rem(index: TssNumber): TssString {
         val new = this.value.toMutableList()
         new.removeAt(index.value.toInt())
-        return TssString(Node.StringNode(Token(Token.STRING,String(new.toTypedArray().toCharArray()), Position.unknown)))
+        return TssString(
+            Node.StringNode(
+                Token(
+                    Token.STRING,
+                    String(new.toTypedArray().toCharArray()),
+                    Position.unknown
+                )
+            )
+        )
     }
 
 }
@@ -449,8 +502,7 @@ class TssList(array: Array<TssType>) : TssType() {
 
 class TssObject(override val value: Map<String, TssType>) : TssType() {
     override fun equals(other: Any?): Boolean {
-        if (other !is TssObject)
-            return false
+        if (other !is TssObject) return false
         return this.value == other.value
     }
 

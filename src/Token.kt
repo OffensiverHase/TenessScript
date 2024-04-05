@@ -27,6 +27,7 @@ class Token(val type: String, val value: String?, val pos: Position) : Serializa
         const val NOT = "!"
         const val AND = "&"
         const val OR = "|"
+        const val XOR = "~"
         const val COMMA = ","
         const val STRING = "string"
         const val LSQUARE = "["
