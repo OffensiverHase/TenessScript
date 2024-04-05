@@ -150,6 +150,10 @@ class TssBool(override val value: Boolean) : TssType() {
         return bool(!this.value)
     }
 
+    override fun toString(): String {
+        return value.toString()
+    }
+
     companion object {
         fun bool(value: Boolean) = TssBool(value)
         val True: TssBool
